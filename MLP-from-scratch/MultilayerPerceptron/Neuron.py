@@ -1,15 +1,17 @@
+from functools import partial
+from typing import Callable
+
 import numpy as np
 
 
 class Neuron:
-    def __init__(self, input_dim, activation_function):
+    def __init__(self, input_dim: int, activation_function: Callable[[float], any]):
         self.input_dim = input_dim
         self.activation_function = activation_function
 
         self.weights = np.random.uniform(-2, 2, input_dim + 1)
 
         self.delta = 0
-        self.moving_avg = np.zeros(input_dim + 1)
 
     def forward_data(self, input_data):
         if len(input_data) != self.input_dim:
@@ -33,3 +35,11 @@ class Neuron:
 
     def get_weights(self):
         return self.weights
+
+    def register(self, attr_name, attr_value):
+
+        if isinstance(attr_value, Callable):
+            raise TypeError("Function value for Neuron attribute is not "
+                            "supported.")
+
+        setattr(self, attr_name, attr_value)

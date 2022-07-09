@@ -5,6 +5,7 @@ from MultilayerPerceptron.ActivationFunctions import (
     ACTIVATION_FUNCTIONS_DERIVATIVES
 )
 from MultilayerPerceptron.Neuron import Neuron
+from MultilayerPerceptron.optimizers.Optimizer import Optimizer
 
 
 class Layer:
@@ -16,7 +17,7 @@ class Layer:
         self.input_dim = input_dim
         self.output_dim = neurons
 
-        self.forward_pass_input = None
+        self.forward_pass_input: [float] = []
         self.layer_output = None
 
         if activation_function not in ACTIVATION_FUNCTIONS.keys():
@@ -35,7 +36,7 @@ class Layer:
     def set_next_layer(self, next_layer):
         self.next_layer = next_layer
 
-    def feed_layer(self, input_data):
+    def feed_layer(self, input_data: [float]):
         if len(input_data) != self.input_dim:
             raise TypeError(
                 f"Input data does not have the same dimension as layer. ({len(input_data), self.input_dim})")
@@ -55,6 +56,10 @@ class Layer:
 
     def get_neurons(self) -> [Neuron]:
         return self.neurons
+
+    def add_optimizer_required_attributes(self, optimizer: Optimizer):
+        for neuron in self.neurons:
+            optimizer.add_optimizer_required_attributes(neuron)
 
     def __str__(self):
         return f"Layer #{self.layer_name} ({self.input_dim}, {self.output_dim})"

@@ -2,8 +2,10 @@ import math
 
 import pandas as pd
 
-from MultilayerPerceptron.MLP import MLP
 from MultilayerPerceptron.Layer import Layer
+from MultilayerPerceptron.MLP import MLP
+from MultilayerPerceptron.Neuron import Neuron
+from MultilayerPerceptron.optimizers.RMSprop import RMSprop
 
 
 def handle_nan_values(dataset, current_row_counter, new_row, backup_column):
@@ -53,7 +55,8 @@ if __name__ == '__main__':
     acoes = generate_dataset(data, desired_column="Open",
                              backup_column="Close", period=period)
 
-    real_world_data: [float] = acoes.tail((period * 2) - 1).pop('DiaObj').values.tolist()
+    real_world_data: [float] = acoes.tail((period * 2) - 1).pop(
+        'DiaObj').values.tolist()
 
     x_train = acoes.sample(frac=0.9)
     x_test = acoes.drop(x_train.index)
@@ -66,8 +69,9 @@ if __name__ == '__main__':
     y_train = [[n] for n in y_train.values.tolist()]
     y_test = [[n] for n in y_test.values.tolist()]
 
-    net = MLP(lr=0.01)
-    hidden_layer_1 = Layer(input_dim=len(x_train[0]), neurons=32, activation_function="relu")
+    net = MLP(optimizer=RMSprop(lr=0.01))
+    hidden_layer_1 = Layer(input_dim=len(x_train[0]), neurons=32,
+                           activation_function="relu")
     output_layer = Layer(input_dim=32, neurons=1, activation_function="linear")
 
     net.add_layer(hidden_layer_1)
@@ -75,7 +79,8 @@ if __name__ == '__main__':
 
     net.optimize(x_train, y_train, epochs=50, metrics=['mae'])
 
-    # Separa os últimos 9 dias para ser usado como entrada para prever os próximos 5 dias
+    # Separa os últimos 9 dias para serem usados como entradas para prever os
+    # próximos 5 dias
     last_n_days = []
 
     j = period - 1
