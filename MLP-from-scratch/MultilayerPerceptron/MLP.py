@@ -107,7 +107,7 @@ class MLP:
                     # related to w_i
                     neuron.set_delta(output_delta * neuron_input_delta)
 
-    def __update_params(self):
+    def __update_params(self, epoch: int):
         for i in reversed(range(len(self.layers))):
             layer: Layer = self.layers[i]
 
@@ -119,7 +119,7 @@ class MLP:
                 for k in range(len(neuron.weights)):
                     self.optimizer.update_param(neuron=neuron, param_i=k,
                                                 forward_pass_input=
-                                                forward_pass_input)
+                                                forward_pass_input, t=epoch)
 
     def optimize(self, x, y, epochs, metrics=None):
         if len(x) == 0:
@@ -131,7 +131,7 @@ class MLP:
         if metrics is not None:
             self.__validate_metrics(metrics)
 
-        for i in range(epochs):
+        for epoch in range(epochs):
             predictions = []
             raw_predictions = []
             for j, sample in enumerate(x):
@@ -144,9 +144,9 @@ class MLP:
                 raw_predictions.append(raw_output)
 
                 self.__backward_propagate_error(y[j])
-                self.__update_params()
+                self.__update_params(epoch=epoch)
 
-            log = f"Epoch={i} Loss (train): {self.loss(np.array(y).ravel(), np.array(raw_predictions).ravel())} "
+            log = f"Epoch={epoch} Loss (train): {self.loss(np.array(y).ravel(), np.array(raw_predictions).ravel())} "
 
             for metric in metrics:
                 log += f" {metric} (train): {METRICS[metric](y, raw_predictions)}"

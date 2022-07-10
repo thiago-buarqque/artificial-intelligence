@@ -5,6 +5,7 @@ import pandas as pd
 from MultilayerPerceptron.Layer import Layer
 from MultilayerPerceptron.MLP import MLP
 from MultilayerPerceptron.Neuron import Neuron
+from MultilayerPerceptron.optimizers.Adam import Adam
 from MultilayerPerceptron.optimizers.RMSprop import RMSprop
 
 
@@ -69,7 +70,7 @@ if __name__ == '__main__':
     y_train = [[n] for n in y_train.values.tolist()]
     y_test = [[n] for n in y_test.values.tolist()]
 
-    net = MLP(optimizer=RMSprop(lr=0.01))
+    net = MLP(optimizer=Adam(lr=0.01))
     hidden_layer_1 = Layer(input_dim=len(x_train[0]), neurons=32,
                            activation_function="relu")
     output_layer = Layer(input_dim=32, neurons=1, activation_function="linear")

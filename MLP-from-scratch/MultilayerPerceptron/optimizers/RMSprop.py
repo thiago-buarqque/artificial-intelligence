@@ -8,14 +8,13 @@ from MultilayerPerceptron.optimizers.Optimizer import Optimizer
 
 class RMSprop(Optimizer):
     def __init__(self, lr: float = 0.01):
-        super().__init__(requires_additional_attributes=True)
-
-        self.lr = lr
+        super().__init__(requires_additional_attributes=True, lr=lr)
 
     def update_param(self,
+                     forward_pass_input: [float],
                      neuron: Neuron,
                      param_i: int,
-                     forward_pass_input: [float]):
+                     t: int):
         last_moving_avg = neuron.moving_avg[param_i]
 
         if param_i <= (len(forward_pass_input) - 1):
