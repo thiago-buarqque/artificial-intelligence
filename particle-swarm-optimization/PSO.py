@@ -2,16 +2,19 @@ import copy
 from typing import Callable, Union
 
 from Particle import Particle
-from custom_types import Bounds
+from custom_types import Bounds, FitnessFunction
+
+
+PlotFunction = Callable[[list[Particle], int], any]
 
 
 class PSO:
     def __init__(self, use_weight_decay: bool, swarm_size: int,
                  positions_bounds: Bounds,
                  velocities_bounds: Bounds,
-                 fitness_function: Callable[[Union[list[int], list[float]]],
-                                            Union[int, float]],
+                 fitness_function: FitnessFunction,
                  c1: float = 2.0, c2: float = 2.0, w: float = 0.9):
+        
         self.c1 = c1
         self.c2 = c2
 
@@ -24,13 +27,17 @@ class PSO:
         self.g_best: Union[None, Particle] = None
         self.g_best_history: list[Particle] = []
 
-        self.__generate_initial_swarm(positions_bounds, velocities_bounds,
-                                      fitness_function)
+        self.__generate_initial_swarm(
+            positions_bounds, velocities_bounds, fitness_function
+        )
 
-    def optimize(self, iterations: int, maximize: bool, plot_progress:
-    Callable[[list[Particle], int], any]):
+    def optimize(self, 
+                 iterations: int,
+                 maximize: bool,
+                 plot_function: Union[PlotFunction, None]):
 
-        plot_progress(self.swarm, -1)
+        if plot_function is not None:
+            plot_function(self.swarm, 0)
 
         for t in range(iterations):
             for particle in self.swarm:
@@ -53,26 +60,31 @@ class PSO:
             print(f"{t}: Best fitness: {self.g_best.fitness} - best "
                   f"positions: {self.g_best.positions}")
 
-            plot_progress(self.swarm, t)
+            if plot_function is not None:
+                plot_function(self.swarm, t+1)
 
     def __is_better_than_g_best(self, maximize: bool, particle: Particle):
         return (maximize is True and particle.fitness > self.g_best.fitness) \
                or (maximize is False and particle.fitness < self.g_best.fitness)
 
-    def __generate_initial_swarm(self, positions_bounds: Bounds,
+    def __generate_initial_swarm(self, 
+                                 positions_bounds: Bounds,
                                  velocities_bounds: Bounds,
-                                 fitness_function: Callable[
-                                     [Union[list[int], list[float]]],
-                                     Union[int, float]]):
+                                 fitness_function: FitnessFunction):
+        
         for i in range(self.swarm_size):
-            self.swarm.append(Particle(dimensions=len(positions_bounds),
-                                       positions_bounds=positions_bounds,
-                                       velocities_bounds=velocities_bounds,
-                                       fitness_function=fitness_function))
+            self.swarm.append(
+                Particle(
+                    dimensions=len(positions_bounds),
+                    positions_bounds=positions_bounds,
+                    velocities_bounds=velocities_bounds,
+                    fitness_function=fitness_function
+                )
+            )
 
     def __linear_decay(self, current_iteration: int, total_iterations: int):
         w_max = 0.9
         w_min = 0.4
 
-        return (w_max - w_min) * ((total_iterations - current_iteration) /
-                                  total_iterations) + w_min
+        return (w_max - w_min) * \
+            ((total_iterations - current_iteration) / total_iterations) + w_min

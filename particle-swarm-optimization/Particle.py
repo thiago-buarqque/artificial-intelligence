@@ -1,16 +1,15 @@
-from typing import Union, Callable
+from typing import Union
 
 import numpy as np
 
-from custom_types import Bounds
+from custom_types import Bounds, FitnessFunction
 
 
 class Particle:
     def __init__(self, dimensions: int,
                  positions_bounds: Bounds,
                  velocities_bounds: Bounds,
-                 fitness_function: Callable[[Union[list[int], list[float]]],
-                                            Union[int, float]]):
+                 fitness_function: FitnessFunction):
 
         self.dimensions = dimensions
 
@@ -42,11 +41,11 @@ class Particle:
     def update_velocities(self, c1: float, c2: float, w: float,
                           g_best_positions: Union[list[int], list[float]]):
         for i in range(self.dimensions):
-            swarm_influence = np.random.uniform() * c2 * (g_best_positions[i]
-                                                          - self.positions[i])
+            swarm_influence = np.random.uniform() * c2 * \
+                (g_best_positions[i] - self.positions[i])
 
-            cognitive_influence = np.random.uniform() * c1 * (
-                    self.p_best_positions[i] - self.positions[i])
+            cognitive_influence = np.random.uniform() * c1 * \
+                (self.p_best_positions[i] - self.positions[i])
 
             inertia = w * self.velocities[i]
 
@@ -84,4 +83,4 @@ class Particle:
                 self.positions[i] = np.random.uniform(bounds[0], bounds[1])
 
     def __str__(self):
-        return f"{self.fitness}"
+        return f"{self.positions} -> {self.fitness}"

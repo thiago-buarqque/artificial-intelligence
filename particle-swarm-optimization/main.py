@@ -68,4 +68,4 @@ if __name__ == '__main__':
               velocities_bounds=velocities_bounds,
               fitness_function=fitness_function)
 
-    pso.optimize(50, maximize=True, plot_progress=plot_swarm)
+    pso.optimize(50, maximize=True, plot_function=plot_swarm)
