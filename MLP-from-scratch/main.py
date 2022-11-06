@@ -56,7 +56,7 @@ if __name__ == '__main__':
     acoes = generate_dataset(data, desired_column="Open",
                              backup_column="Close", period=period)
 
-    real_world_data: [float] = acoes.tail((period * 2) - 1).pop(
+    real_world_data: list[float] = acoes.tail((period * 2) - 1).pop(
         'DiaObj').values.tolist()
 
     x_train = acoes.sample(frac=0.9)

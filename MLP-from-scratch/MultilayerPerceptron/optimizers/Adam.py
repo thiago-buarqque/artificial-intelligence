@@ -14,34 +14,36 @@ class Adam(Optimizer):
         self.b2 = b2
 
     def update_param(self,
-                     forward_pass_input: [float],
+                     forward_pass_input: list[float],
                      neuron: Neuron,
-                     param_i: int,
+                     param_index: int,
                      t: int):
-        last_momentum = neuron.momentum[param_i]
-        last_moving_avg = neuron.moving_avg[param_i]
+                     
+        last_momentum = neuron.momentum[param_index]
 
-        if param_i <= (len(forward_pass_input) - 1):
-            param_gradient = neuron.delta * forward_pass_input[param_i]
-        else:
-            # It's the neuron bias
-            param_gradient = neuron.delta
+        last_moving_avg = neuron.moving_avg[param_index]
 
-        mt = (self.b1 * last_momentum) + ((1 - self.b1) * param_gradient)
+        param_gradient = self.get_param_gradient(
+            forward_pass_input, neuron, param_index
+        )
 
-        vt = (self.b2 * last_moving_avg) + ((1 - self.b2) * param_gradient ** 2)
+        momentum = (self.b1 * last_momentum) + ((1 - self.b1) * param_gradient)
 
-        neuron.momentum[param_i] = mt
+        past_gradients = \
+            (self.b2 * last_moving_avg) + ((1 - self.b2) * param_gradient ** 2)
 
-        neuron.moving_avg[param_i] = vt
+        neuron.momentum[param_index] = momentum
 
-        mt_hat = mt / (1 - (math.pow(self.b1, t + 1)))
+        neuron.moving_avg[param_index] = past_gradients
 
-        vt_hat = vt / (1 - (math.pow(self.b2, t + 1)))
+        momentum_corrected = momentum / (1 - (math.pow(self.b1, t + 1)))
 
-        neuron.weights[param_i] -= (self.lr / (
-            math.sqrt(vt_hat) + 1e-8)) * mt_hat
+        past_gradients_corrected = \
+            past_gradients / (1 - (math.pow(self.b2, t + 1)))
 
-    def add_optimizer_required_attributes(self, neuron: Neuron):
+        neuron.weights[param_index] -= (self.lr / \
+            (math.sqrt(past_gradients_corrected) + 1e-8)) * momentum_corrected
+
+    def add_required_attributes(self, neuron: Neuron):
         neuron.register("moving_avg", np.zeros(neuron.input_dim + 1))
         neuron.register("momentum", np.zeros(neuron.input_dim + 1))

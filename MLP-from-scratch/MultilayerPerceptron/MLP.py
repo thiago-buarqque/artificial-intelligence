@@ -11,24 +11,10 @@ from MultilayerPerceptron.optimizers.RMSprop import RMSprop
 
 
 class MLP:
-    def __init__(self,
-                 classify_function: Callable[..., any] = None,
-                 loss: str = "mse",
-                 optimizer: Optimizer = RMSprop):
+    def __init__(self, loss: str = "mse", optimizer: Optimizer = RMSprop):
         self.input_dim = 0
 
         self.layers = []
-
-        """
-        Used for binary classification. Returns 0 or 1 based on a user condition
-        
-        Example:
-        def classify_function(net_output):
-            if net_output > 0.5:
-                return 1
-            return 0
-        """
-        self.classify_function = classify_function
 
         if loss not in LOSS_FUNCTIONS.keys():
             raise ValueError(f"'{loss}' is not a valid loss function.")
@@ -59,9 +45,8 @@ class MLP:
     def __backward_propagate_error(self, expected_output):
         for i in reversed(range(len(self.layers))):
             layer = self.layers[i]
-            layer_neurons: [Neuron] = layer.get_neurons()
+            layer_neurons: list[Neuron] = layer.get_neurons()
 
-            # It's a hidden layer
             if i != len(self.layers) - 1:
                 next_layer: Layer = self.layers[i + 1]
 
@@ -70,7 +55,7 @@ class MLP:
                     # The neuron output relative error
                     next_layer_relative_error = 0
 
-                    next_layer_neurons: [Neuron] = next_layer.get_neurons()
+                    next_layer_neurons: list[Neuron] = next_layer.get_neurons()
 
                     for k, _neuron in enumerate(next_layer_neurons):
                         next_layer_relative_error += _neuron.delta * \
@@ -78,8 +63,8 @@ class MLP:
 
                     # How much the output of h_i changes with respect to the
                     # neuron input
-                    neuron_input_delta = layer.activation_derivative(
-                        layer_output[j])
+                    neuron_input_delta = \
+                        layer.activation_derivative(layer_output[j])
 
                     # Calculate weight delta
 
@@ -92,12 +77,12 @@ class MLP:
                 layer_output = layer.layer_output
                 for j, neuron in enumerate(layer_neurons):
                     # How much the error change with respect to the output
-                    output_delta = layer_output[j] - expected_output[j]
+                    error = layer_output[j] - expected_output[j]
 
                     # How much the output of o_i change with respect the
                     # neuron input
-                    neuron_input_delta = layer.activation_derivative(
-                        layer_output[j])
+                    neuron_input_delta = \
+                        layer.activation_derivative(layer_output[j])
 
                     # Calculate neuron delta
 
@@ -105,7 +90,7 @@ class MLP:
                     # respect to w_i" value is calculated when updating the
                     # parameter. This is just the output from previous layer
                     # related to w_i
-                    neuron.set_delta(output_delta * neuron_input_delta)
+                    neuron.set_delta(error * neuron_input_delta)
 
     def __update_params(self, epoch: int):
         for i in reversed(range(len(self.layers))):
@@ -113,11 +98,11 @@ class MLP:
 
             forward_pass_input = layer.get_forward_pass_input()
 
-            neurons: [Neuron] = layer.get_neurons()
+            neurons: list[Neuron] = layer.get_neurons()
 
             for j, neuron in enumerate(neurons):
                 for k in range(len(neuron.weights)):
-                    self.optimizer.update_param(neuron=neuron, param_i=k,
+                    self.optimizer.update_param(neuron=neuron, param_index=k,
                                                 forward_pass_input=
                                                 forward_pass_input, t=epoch)
 
@@ -132,21 +117,18 @@ class MLP:
             self.__validate_metrics(metrics)
 
         for epoch in range(epochs):
-            predictions = []
             raw_predictions = []
+
             for j, sample in enumerate(x):
                 raw_output = self.predict([sample])[0]
-
-                if self.classify_function is not None:
-                    output = self.classify_function(raw_output)
-                    predictions.append(output)
 
                 raw_predictions.append(raw_output)
 
                 self.__backward_propagate_error(y[j])
                 self.__update_params(epoch=epoch)
 
-            log = f"Epoch={epoch} Loss (train): {self.loss(np.array(y).ravel(), np.array(raw_predictions).ravel())} "
+            log = f"Epoch={epoch} Loss (train): \
+                {self.loss(np.array(y).ravel(), np.array(raw_predictions).ravel())} "
 
             for metric in metrics:
                 log += f" {metric} (train): {METRICS[metric](y, raw_predictions)}"
@@ -161,24 +143,14 @@ class MLP:
         predicts = []
         for sample in x:
             output = sample
-            for k, layer in enumerate(self.layers):
+            for layer in self.layers:
                 output = layer.feed_layer(output)
 
             predicts.append(output)
 
         return predicts
 
-    def evaluate(self, x):
-        """
-        Make a prediction and classify it using the classify function
-        :param x:
-        :return: The proper class for the network prediction
-        """
-        prediction = self.evaluate(x)
-
-        return self.classify_function(prediction)
-
-    def __validate_metrics(self, metrics: [str]):
+    def __validate_metrics(self, metrics: list[str]):
         for metric in metrics:
             if metric not in METRICS.keys():
                 raise ValueError(f"'{metric}' is not a valid metric.")

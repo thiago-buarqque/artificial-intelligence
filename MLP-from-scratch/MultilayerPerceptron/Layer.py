@@ -17,7 +17,7 @@ class Layer:
         self.input_dim = input_dim
         self.output_dim = neurons
 
-        self.forward_pass_input: [float] = []
+        self.forward_pass_input: list[float] = []
         self.layer_output = None
 
         if activation_function not in ACTIVATION_FUNCTIONS.keys():
@@ -36,7 +36,7 @@ class Layer:
     def set_next_layer(self, next_layer):
         self.next_layer = next_layer
 
-    def feed_layer(self, input_data: [float]):
+    def feed_layer(self, input_data: list[float]):
         if len(input_data) != self.input_dim:
             raise TypeError(
                 f"Input data does not have the same dimension as layer. ({len(input_data), self.input_dim})")
@@ -54,12 +54,12 @@ class Layer:
     def get_forward_pass_input(self):
         return self.forward_pass_input
 
-    def get_neurons(self) -> [Neuron]:
+    def get_neurons(self) -> list[Neuron]:
         return self.neurons
 
     def add_optimizer_required_attributes(self, optimizer: Optimizer):
         for neuron in self.neurons:
-            optimizer.add_optimizer_required_attributes(neuron)
+            optimizer.add_required_attributes(neuron)
 
     def __str__(self):
         return f"Layer #{self.layer_name} ({self.input_dim}, {self.output_dim})"
