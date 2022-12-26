@@ -1,3 +1,3 @@
 # Artificial intelligence projects
 
-All my AI projects
+Open a project's folder for more details.

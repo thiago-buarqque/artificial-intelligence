@@ -1,0 +1,3 @@
+# Multilayer Perceptron Neural Network
+
+MLP network from scratch in python. This is a project still in development...
