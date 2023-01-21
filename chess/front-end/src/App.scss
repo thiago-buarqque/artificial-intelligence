@@ -1,0 +1,19 @@
+#board {
+    width: 800px;
+    height: 800px;
+
+    div > div {
+        width: 100px;
+        height: 100px;
+    }
+
+    .odd-row > div:nth-child(even),
+    .even-row > div:nth-child(odd) {
+        background-color: #545f7e;
+    }
+
+    .piece {
+      width: 64px;
+      height: 64px;
+    }
+}
