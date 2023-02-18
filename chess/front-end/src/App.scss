@@ -2,7 +2,7 @@
     width: 800px;
     height: 800px;
 
-    div > div {
+    .cell {
         width: 100px;
         height: 100px;
     }
@@ -13,7 +13,6 @@
     }
 
     .piece {
-      width: 64px;
-      height: 64px;
+        background-size: 64%;
     }
 }

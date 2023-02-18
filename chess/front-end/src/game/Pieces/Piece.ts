@@ -4,13 +4,13 @@ import Position from "./Position";
 
 export default class Piece {
     #color: PieceColor;
-    #type: PieceType;
     #position: Position | null;
+    #type: PieceType;
 
-    constructor(color: PieceColor, type: PieceType, position: Position | null = null) {
+    constructor(color: PieceColor, position: Position | null = null, type: PieceType) {
         this.#color = color;
-        this.#type = type;
         this.#position = position;
+        this.#type = type;
     }
 
     public getColor() {

@@ -4,7 +4,7 @@ enum EPieceType {
     BISHOP = "bishop",
     KNIGHT = "knight",
     ROOQ = "rooq",
-    PAWN = "pawn",
+    PAWN = "pawn"
 }
 
 export default EPieceType;

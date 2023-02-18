@@ -1,7 +1,8 @@
-import Piece from "./Piece";
+import Piece from "./Pieces/Piece";
 
-export default class Game { // Keep calling it `Board`?
-    #board: (Piece | null)[][]
+export type TBoard = (Piece | null)[][]
+export default class Game {
+    #board: TBoard
 
     constructor() {
         this.#board = this.#fillEmptyBoard();        
