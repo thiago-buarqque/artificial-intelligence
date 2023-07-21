@@ -1,6 +1,7 @@
 import numpy as np
 
 from src.Piece import (PieceColor, PieceType, PIECE_SYMBOLS, PIECE_VALUE_TO_FEN)
+from src.utils import is_white_piece
 
 FEN_STARTING_POSITION = \
     "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
@@ -12,6 +13,9 @@ class Board:
         self.white_captures = []
         self.black_captures = []
 
+        self.black_en_passants = []
+        self.white_en_passants = []
+
         self.is_white_move = True
 
         self.load_position(FEN_STARTING_POSITION)
@@ -20,7 +24,7 @@ class Board:
         self.__validate_board_index(index)
 
         if self.squares[index] != PieceType.Empty:
-            if self.__is_white_piece(index):
+            if is_white_piece(index):
                 self.black_captures.append(self.squares[index])
             else:
                 self.white_captures.append(self.squares[index])
@@ -43,6 +47,9 @@ class Board:
         self.__validate_board_index(index)
 
         return self.squares[index]
+
+    def is_valid_position(self, index: int):
+        return 0 <= index < len(self.squares)
 
     def load_position(self, fen_position: str):
         self.squares = np.repeat(0, 64)
@@ -109,13 +116,3 @@ class Board:
     def __validate_board_index(self, index):
         if not 0 <= index < len(self.squares):
             raise IndexError(f"Invalid board index {index}")
-
-    @staticmethod
-    def __is_white_piece(pieceValue):
-        return (PieceColor.White | PieceType.Bishop) <= \
-            pieceValue <= (PieceColor.White | PieceType.Rook)
-
-    @staticmethod
-    def __is_black_piece(pieceValue):
-        return (PieceColor.Black | PieceType.Bishop) <= \
-            pieceValue <= (PieceColor.Black | PieceType.Rook)
