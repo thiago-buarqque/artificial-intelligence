@@ -29,7 +29,7 @@ PIECE_SYMBOLS = {
     "r": "♜"
 }
 
-PIECE_VALUE_TO_FEN = {
+PIECE_FEN = {
     PieceColor.White | PieceType.Bishop: "B",
     PieceColor.White | PieceType.King: "K",
     PieceColor.White | PieceType.Knight: "N",
@@ -43,4 +43,23 @@ PIECE_VALUE_TO_FEN = {
     PieceColor.Black | PieceType.Pawn: "p",
     PieceColor.Black | PieceType.Queen: "q",
     PieceColor.Black | PieceType.Rook: "r"
+}
+
+
+PIECE_VALUE_TO_TYPE = {
+    PieceType.Empty: PieceType.Empty,
+
+    PieceColor.White | PieceType.Bishop: PieceType.Bishop,
+    PieceColor.White | PieceType.King: PieceType.King,
+    PieceColor.White | PieceType.Knight: PieceType.Knight,
+    PieceColor.White | PieceType.Pawn: PieceType.Pawn,
+    PieceColor.White | PieceType.Queen: PieceType.Queen,
+    PieceColor.White | PieceType.Rook: PieceType.Rook,
+
+    PieceColor.Black | PieceType.Bishop: PieceType.Bishop,
+    PieceColor.Black | PieceType.King: PieceType.King,
+    PieceColor.Black | PieceType.Knight: PieceType.Knight,
+    PieceColor.Black | PieceType.Pawn: PieceType.Pawn,
+    PieceColor.Black | PieceType.Queen: PieceType.Queen,
+    PieceColor.Black | PieceType.Rook: PieceType.Rook
 }

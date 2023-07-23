@@ -1,10 +1,9 @@
 import numpy as np
 
-from src.Piece import (PieceColor, PieceType, PIECE_SYMBOLS, PIECE_VALUE_TO_FEN)
-from src.utils import is_white_piece
-
-FEN_STARTING_POSITION = \
-    "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
+from src.MoveGenerator import MoveGenerator
+from src.Piece import (PieceColor, PieceType, PIECE_SYMBOLS, PIECE_FEN,
+                       PIECE_VALUE_TO_TYPE)
+from src.utils import is_white_piece, INITIAL_FEN
 
 
 class Board:
@@ -18,7 +17,50 @@ class Board:
 
         self.is_white_move = True
 
-        self.load_position(FEN_STARTING_POSITION)
+        self.move_generator = MoveGenerator(self)
+
+        self.load_position(INITIAL_FEN)
+
+    def get_available_moves(self):
+        generate_functions = {
+            PieceType.Empty: lambda *args: [],
+            PieceType.Bishop: self.move_generator.generate_bishop_moves,
+            PieceType.Knight: lambda *args: [],
+            PieceType.Pawn: self.move_generator.generate_pawn_moves,
+            PieceType.Queen: self.move_generator.generate_queen_moves,
+            PieceType.Rook: self.move_generator.generate_rook_moves
+        }
+
+        black_moves = []
+        white_moves = []
+        moves = []
+
+        white_king_position = -1
+        black_king_position = -1
+        for position, piece in enumerate(self.squares):
+            if PIECE_VALUE_TO_TYPE[piece] == PieceType.King:
+                is_white_king = is_white_piece(position)
+
+                if is_white_king:
+                    white_king_position = position
+                else:
+                    black_king_position = position
+            else:
+                moves += \
+                    generate_functions[PIECE_VALUE_TO_TYPE[piece]](position)
+
+        moves += self.move_generator.generate_king_moves(
+            black_moves,
+            white_king_position
+        )
+
+        moves += self.move_generator.generate_king_moves(
+            white_moves,
+            black_king_position
+        )
+
+        # Check for invalid moves
+        return moves
 
     def place_piece(self, index: int, piece: int):
         self.__validate_board_index(index)
@@ -68,7 +110,7 @@ class Board:
             for j in range(8):
                 piece = self.get_piece(index)
                 if piece != PieceType.Empty:
-                    str_row += PIECE_SYMBOLS[PIECE_VALUE_TO_FEN[piece]]
+                    str_row += PIECE_SYMBOLS[PIECE_FEN[piece]]
                 else:
                     str_row += " "
 

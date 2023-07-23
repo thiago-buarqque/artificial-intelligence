@@ -45,6 +45,13 @@ class BoardTest(unittest.TestCase):
         board.load_position(
             "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1")
 
+    def test_available_moves(self):
+        board = Board()
+
+        moves = board.get_available_moves()
+
+        self.assertEqual([], moves)
+
 
 if __name__ == '__main__':
     unittest.main()
