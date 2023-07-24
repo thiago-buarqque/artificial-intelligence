@@ -25,7 +25,7 @@ class Board:
         generate_functions = {
             PieceType.Empty: lambda *args: [],
             PieceType.Bishop: self.move_generator.generate_bishop_moves,
-            PieceType.Knight: lambda *args: [],
+            PieceType.Knight: self.move_generator.generate_knight_moves,
             PieceType.Pawn: self.move_generator.generate_pawn_moves,
             PieceType.Queen: self.move_generator.generate_queen_moves,
             PieceType.Rook: self.move_generator.generate_rook_moves

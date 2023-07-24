@@ -2,9 +2,10 @@ import unittest
 
 from src.Board import Board
 from src.Piece import (PieceColor, PieceType)
+from test.BaseTest import BaseTest
 
 
-class BoardTest(unittest.TestCase):
+class BoardTest(BaseTest):
     def test_piece_placement(self):
         board = Board()
 

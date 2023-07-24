@@ -3,10 +3,11 @@ import unittest
 from src.Board import Board
 from src.MoveGenerator import MoveGenerator
 from src.Piece import PieceColor, PieceType
-from src.utils import EMPTY_BOARD_FEN, INITIAL_FEN
+from src.utils import EMPTY_BOARD_FEN
+from test.BaseTest import BaseTest
 
 
-class MyTestCase(unittest.TestCase):
+class MoveGeneratorTest(BaseTest):
 
     def setUp(self) -> None:
         self.board = Board()
@@ -20,7 +21,7 @@ class MyTestCase(unittest.TestCase):
         white_moves = move_generator.generate_pawn_moves(52)
 
         self.assertEqual(1, len(white_moves))
-        self.assertEqual([44], white_moves)
+        self.assertLists([44], white_moves)
 
         self.board.move_piece(52, 44)
 
@@ -68,7 +69,7 @@ class MyTestCase(unittest.TestCase):
 
         moves = move_generator.generate_rook_moves(0)
 
-        self.assertEqual([1, 2, 3, 4, 5, 6, 7, 8, 16, 24, 32, 40, 48, 56],
+        self.assertLists([1, 2, 3, 4, 5, 6, 7, 8, 16, 24, 32, 40, 48, 56],
                          moves)
 
         self.board.place_piece(16, PieceColor.Black | PieceType.Pawn)
@@ -76,13 +77,13 @@ class MyTestCase(unittest.TestCase):
 
         moves = move_generator.generate_rook_moves(0)
 
-        self.assertEqual([1, 2, 3, 8], moves)
+        self.assertLists([1, 2, 3, 8], moves)
 
         self.board.place_piece(16, PieceColor.White | PieceType.Queen)
 
         moves = move_generator.generate_rook_moves(0)
 
-        self.assertEqual([1, 2, 3, 8, 16], moves)
+        self.assertLists([1, 2, 3, 8, 16], moves)
 
     def test_generate_bishop_moves(self):
         self.board.load_position(EMPTY_BOARD_FEN)
@@ -92,22 +93,22 @@ class MyTestCase(unittest.TestCase):
 
         moves = move_generator.generate_bishop_moves(2)
 
-        self.assertEqual([9, 16, 11, 20, 29, 38, 47], moves)
+        self.assertLists([9, 16, 11, 20, 29, 38, 47], moves)
 
         self.board.place_piece(5, PieceColor.Black | PieceType.Bishop)
         moves = move_generator.generate_bishop_moves(5)
 
-        self.assertEqual([12, 19, 26, 33, 40, 14, 23], moves)
+        self.assertLists([12, 19, 26, 33, 40, 14, 23], moves)
 
         self.board.place_piece(58, PieceColor.White | PieceType.Bishop)
         moves = move_generator.generate_bishop_moves(58)
 
-        self.assertEqual([49, 40, 51, 44, 37, 30, 23], moves)
+        self.assertLists([49, 40, 51, 44, 37, 30, 23], moves)
 
         self.board.place_piece(61, PieceColor.White | PieceType.Bishop)
         moves = move_generator.generate_bishop_moves(61)
 
-        self.assertEqual([52, 43, 34, 25, 16, 54, 47], moves)
+        self.assertLists([52, 43, 34, 25, 16, 54, 47], moves)
 
     def test_generate_queen_moves(self):
         self.board.load_position(EMPTY_BOARD_FEN)
@@ -118,7 +119,7 @@ class MyTestCase(unittest.TestCase):
 
         moves = move_generator.generate_queen_moves(0)
 
-        self.assertEqual(
+        self.assertLists(
             [9, 18, 27, 36, 45, 54, 63, 1, 2, 3, 4, 5, 6, 7, 8, 16, 24, 32, 40,
              48, 56], moves)
 
@@ -126,9 +127,9 @@ class MyTestCase(unittest.TestCase):
 
         moves = move_generator.generate_queen_moves(36)
 
-        self.assertEqual(
-            [27, 18, 9, 0, 29, 22, 15, 43, 50, 57, 45, 54, 63, 28, 20, 12, 4,
-             35, 34, 33, 32, 37, 38, 39, 44, 52, 60], moves)
+        self.assertLists(
+            [27, 18, 9, 0, 29, 22, 15, 43, 50, 57, 45, 54, 63, 28, 20,
+             12, 4, 35, 34, 33, 32, 37, 38, 39, 44, 52, 60], moves)
 
     def test_generate_king_moves(self):
         self.board.load_position(EMPTY_BOARD_FEN)
@@ -145,10 +146,7 @@ class MyTestCase(unittest.TestCase):
             36
         )
 
-        for element in expected:
-            self.assertIn(element, actual)
-
-        self.assertIn([27, 28, 35, 43, 44], king_moves)
+        self.assertLists([27, 28, 35, 43, 44], king_moves)
 
     # For each test assert that moves that would reveal king don't exist
     # maybe in board#getLegalMoves?

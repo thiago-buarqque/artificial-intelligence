@@ -20,6 +20,27 @@ class MoveGenerator:
     def __init__(self, board: Board):
         self.board = board
 
+    def generate_knight_moves(self, position: int):
+        positions = [
+            position - 10,
+            position - 17,
+            position - 15,
+            position - 6,
+            position + 6,
+            position + 10,
+            position + 15,
+            position + 17
+        ]
+
+        moves = []
+        for current_position in positions:
+            if self.board.is_valid_position(current_position):
+                piece = self.board.get_piece(current_position)
+
+                if piece == PieceType.Empty or \
+                        (not is_same_color(position, current_position)):
+                    moves.append(current_position)
+
     def generate_king_moves(self, opponent_moves: [int], position: int):
         positions = [position - 1,
                      position + 1,
