@@ -13,23 +13,23 @@ import QueenWhite from "../assets/queen-white.svg";
 import RookBlack from "../assets/rook-black.svg";
 import RookWhite from "../assets/rook-white.svg";
 
-import { TBoardPiece, TBoardPosition } from "./types";
+import { TBoardPiece} from "./types";
 
-const PIECES: {
+const PIECE_ICONS: {
   [key: string]: string;
 } = {
-  "bishop-black": BishopBlack,
-  "bishop-white": BishopWhite,
-  "king-black": KingBlack,
-  "king-white": KingWhite,
-  "knight-black": KnightBlack,
-  "knight-white": KnightWhite,
-  "pawn-black": PawnBlack,
-  "pawn-white": PawnWhite,
-  "queen-black": QueenBlack,
-  "queen-white": QueenWhite,
-  "rook-black": RookBlack,
-  "rook-white": RookWhite,
+  "b": BishopBlack,
+  "B": BishopWhite,
+  "k": KingBlack,
+  "K": KingWhite,
+  "n": KnightBlack,
+  "N": KnightWhite,
+  "p": PawnBlack,
+  "P": PawnWhite,
+  "q": QueenBlack,
+  "Q": QueenWhite,
+  "r": RookBlack,
+  "R": RookWhite,
 };
 
 interface IProps {
@@ -38,7 +38,7 @@ interface IProps {
 }
 
 const BoardPiece: React.FC<IProps> = ({ boardPiece, onClick }) => {
-  const { availableMoves, color, position, type } = boardPiece;
+  const { moves, type, position } = boardPiece;
 
   return (
     <button
@@ -49,7 +49,7 @@ const BoardPiece: React.FC<IProps> = ({ boardPiece, onClick }) => {
         }
       }}
     >
-      {<img className="piece" src={PIECES[type + "-" + color]} alt={type + "-" + color} />}
+      {type && <img className="piece" src={PIECE_ICONS[type]} alt={type} />}
     </button>
   );
 };

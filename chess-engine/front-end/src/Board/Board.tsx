@@ -1,13 +1,14 @@
 import React, { MouseEventHandler, useEffect, useRef, useState } from "react";
 
-import { BOARD } from "./mock-data";
 import BoardPiece from "./BoardPiece";
-import { TBoardPiece, TBoardPosition } from "./types";
+import { TBoard, TBoardPiece } from "./types";
 
 //@ts-ignore
 import captureAudio from "../assets/sound/capture.mp3";
 //@ts-ignore
 import moveAudio from "../assets/sound/move-self.mp3";
+
+import http from "../http-common";
 
 import "./board.scss";
 
@@ -23,6 +24,19 @@ const COLUMNS: { [key: number]: string } = {
   7: "H",
 };
 
+const EMPTY_PIECE: TBoardPiece = {
+  moves: [],
+  position: -1,
+  type: null,
+};
+
+const get_empty_piece = (position: number) => {
+  const piece: TBoardPiece = JSON.parse(JSON.stringify(EMPTY_PIECE));
+  piece.position = position;
+
+  return piece;
+};
+
 const playMoveAudio = (capture: boolean) => {
   let audio;
 
@@ -34,14 +48,21 @@ const playMoveAudio = (capture: boolean) => {
   audio.play();
 };
 
-const isNotAnAvailableMove = (availableMoves: TBoardPosition[], column: number, row: number) => !availableMoves.find((move) => move.row === row && move.column === column)
+const isNotAnAvailableMove = (availableMoves: number[], position: number) =>
+  !availableMoves.find((move) => move === position);
 
 const Board = () => {
   const [selectedPiece, setSelectedPiece] = useState<TBoardPiece | null>(null);
-  const [board, setBoard] = useState(BOARD);
+  const [board, setBoard] = useState<TBoard>({
+    blackCaptures: [],
+    whiteCaptures: [],
+    pieces: [],
+    winner: null
+  });
 
   const onPieceSelect = (piece: TBoardPiece) => {
-    console.log("Piece click");
+    console.log("Piece click: ", piece.type, piece.position);
+    console.log(piece.moves);
     if (selectedPiece === piece) {
       setSelectedPiece(null);
     } else {
@@ -55,67 +76,92 @@ const Board = () => {
   };
 
   const togglePieceAvailableMoves = (piece: TBoardPiece) => {
-    piece.availableMoves.forEach((move) => {
-      const className = board.pieces[`${move.row}-${move.column}`]
-        ? "capture-receptor"
-        : "empty-receptor";
+    piece.moves.forEach((move) => {
+      const className = board.pieces[move].type ? "capture-receptor" : "empty-receptor";
 
-      const cell = document.querySelector(
-        `.cell[data-pos='${move.row}-${move.column}']`
-      ) as HTMLDivElement;
+      const cell = document.querySelector(`.cell[data-pos='${move}']`) as HTMLDivElement;
 
       // cell.onclick = () => onCellClick(cell, move.row, move.column);
       cell.classList.toggle(className);
 
       const cellPiece = document.querySelector(
-        `.cell[data-pos='${move.row}-${move.column}'] button.piece-button`
+        `.cell[data-pos='${move}'] button.piece-button`
       ) as HTMLDivElement;
 
       cellPiece?.classList.toggle("disabled");
     });
   };
 
-  const onCellClick = (cell: HTMLDivElement, row: number, column: number) => {
-    console.log("Cell click");
+  const onMovePiece = (cell: HTMLDivElement, cellPosition: number) => {
     if (selectedPiece) {
-      const { position, availableMoves } = selectedPiece;
+      const { position, moves } = selectedPiece;
 
-      if (isNotAnAvailableMove(availableMoves, column, row)) {
+      if (isNotAnAvailableMove(moves, cellPosition)) {
         return;
       }
 
-      const copy_board = JSON.parse(JSON.stringify(board));
+      const copy_board: TBoard = JSON.parse(JSON.stringify(board));
 
       let capture = false;
-      if (copy_board.pieces[row + "-" + column]) {
+      if (copy_board.pieces[cellPosition].type !== null) {
         capture = true;
       }
-      // @ts-ignore
-      copy_board.pieces[position.row + "-" + position.column] = undefined;
 
-      selectedPiece.position.row = row;
-      selectedPiece.position.column = column;
+      copy_board.pieces[position] = get_empty_piece(position);
 
-      copy_board.pieces[row + "-" + column] = selectedPiece;
+      selectedPiece.position = cellPosition;
+
+      copy_board.pieces[cellPosition] = selectedPiece;
 
       setSelectedPiece(null);
       setBoard(copy_board);
 
       const cellPiece = document.querySelector(
-        `.cell[data-pos='${row}-${column}'] button.piece-button.disabled`
+        `.cell[data-pos='${position}'] button.piece-button.disabled`
       ) as HTMLDivElement;
 
       cellPiece?.classList.remove("disabled");
 
       playMoveAudio(capture);
-      if(capture) {
-        cell.classList.remove("capture-receptor")
-      }
+
+      // console.log(`Capture`, capture);
+      // if (capture) {
+      //   console.log(cell);
+      //   cell.classList.remove("capture-receptor");
+      // }
+
       togglePieceAvailableMoves(selectedPiece);
+      // add loading before sendin request
+      movePiece(position, cellPosition);
       // currentTarget.onclick = null;
       // send request to server and update the state with the result
     }
   };
+
+  const movePiece = (from: number, to: number) => {
+    http
+      .post<TBoard>("/board/move/piece", {
+        from,
+        to,
+      })
+      .then((response) => response.data)
+      .then((data) => {
+        setBoard(data)
+      });
+  };
+
+  useEffect(() => {
+    http
+      .get<TBoard>("/board")
+      .then((response) => response.data)
+      .then((data) => setBoard(data));
+  }, []);
+
+  useEffect(() => {
+    if(board.winner) {
+      console.log(`${board.winner} wins!`)
+    }
+  }, [board])
 
   return (
     <div id="board">
@@ -125,8 +171,8 @@ const Board = () => {
             <div
               key={j}
               className="cell"
-              data-pos={i + "-" + j}
-              onClick={(e) => onCellClick(e.currentTarget, i, j)}
+              data-pos={i * 8 + j}
+              onClick={(e) => onMovePiece(e.currentTarget, i * 8 + j)}
             >
               {j === 0 && (
                 <span className={`row-index ${(i + 1) % 2 !== 0 ? "white" : ""}`}>{i + 1}</span>
@@ -136,8 +182,8 @@ const Board = () => {
                   {COLUMNS[j]}
                 </span>
               )}
-              {board.pieces[i + "-" + j] ? (
-                <BoardPiece boardPiece={board.pieces[i + "-" + j]} onClick={onPieceSelect} />
+              {board.pieces[i * 8 + j] && board.pieces[i * 8 + j].type !== null ? (
+                <BoardPiece boardPiece={board.pieces[i * 8 + j]} onClick={onPieceSelect} />
               ) : (
                 <div className="move-dot"></div>
               )}

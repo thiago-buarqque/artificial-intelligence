@@ -1,9 +1,11 @@
+from typing import Union
+
 import numpy as np
 
-from src.MoveGenerator import MoveGenerator
-from src.Piece import (PieceColor, PieceType, PIECE_SYMBOLS, PIECE_FEN,
-                       PIECE_VALUE_TO_TYPE)
-from src.utils import is_white_piece, INITIAL_FEN
+from MoveGenerator import MoveGenerator
+from Piece import (PieceColor, PieceType, PIECE_SYMBOLS, PIECE_FEN,
+                   PIECE_VALUE_TO_TYPE)
+from utils import is_white_piece, INITIAL_FEN
 
 
 class Board:
@@ -19,6 +21,8 @@ class Board:
 
         self.move_generator = MoveGenerator(self)
 
+        self.winner: Union[None, PieceColor.Black, PieceColor.White] = None
+
         self.load_position(INITIAL_FEN)
 
     def get_available_moves(self):
@@ -33,45 +37,81 @@ class Board:
 
         black_moves = []
         white_moves = []
-        moves = []
+        pieces = []
 
         white_king_position = -1
         black_king_position = -1
         for position, piece in enumerate(self.squares):
             if PIECE_VALUE_TO_TYPE[piece] == PieceType.King:
-                is_white_king = is_white_piece(position)
+                is_white_king = is_white_piece(piece)
 
                 if is_white_king:
                     white_king_position = position
                 else:
                     black_king_position = position
+
+                pieces.append(None)
             else:
-                moves += \
-                    generate_functions[PIECE_VALUE_TO_TYPE[piece]](position)
+                pieces.append({
+                    'moves':
+                        generate_functions[PIECE_VALUE_TO_TYPE[piece]](
+                            position),
+                    'position': int(position),
+                    'type': PIECE_FEN[piece] if (
+                                piece != PieceType.Empty) else None
+                })
 
-        moves += self.move_generator.generate_king_moves(
-            black_moves,
-            white_king_position
-        )
+        pieces[white_king_position] = {
+            'moves': self.move_generator.generate_king_moves(
+                black_moves, white_king_position
+            ),
+            'position': white_king_position,
+            'type': PIECE_FEN[PieceColor.White | PieceType.King]
+        }
 
-        moves += self.move_generator.generate_king_moves(
-            white_moves,
-            black_king_position
-        )
+        pieces[black_king_position] = {
+            'moves': self.move_generator.generate_king_moves(
+                white_moves, black_king_position
+            ),
+            'position': black_king_position,
+            'type': PIECE_FEN[PieceColor.Black | PieceType.King]
+        }
 
         # Check for invalid moves
-        return moves
+        return pieces
 
     def place_piece(self, index: int, piece: int):
         self.__validate_board_index(index)
 
         if self.squares[index] != PieceType.Empty:
-            if is_white_piece(index):
+            current_piece_white = is_white_piece(index)
+
+            if current_piece_white:
                 self.black_captures.append(self.squares[index])
             else:
                 self.white_captures.append(self.squares[index])
 
+            if PIECE_VALUE_TO_TYPE[self.get_piece(index)] == PieceType.King:
+                if current_piece_white:
+                    self.winner = PieceColor.Black
+                else:
+                    self.winner = PieceColor.White
+
+                # Add events on finish?
+                return self.winner
+
         self.squares[index] = piece
+
+        return None
+
+    def get_winner(self):
+        if self.winner is not None:
+            return {
+                PieceColor.White: "w",
+                PieceColor.Black: "b",
+            }[self.winner]
+
+        return self.winner
 
     def move_piece(self, from_index: int, to_index: int):
         self.__validate_board_index(from_index)
@@ -81,9 +121,8 @@ class Board:
 
         piece_value = self.squares[from_index]
 
-        self.squares[from_index] = PieceType.Empty
-
-        self.place_piece(to_index, piece_value)
+        if self.place_piece(to_index, piece_value) is None:
+            self.squares[from_index] = PieceType.Empty
 
     def get_piece(self, index: int):
         self.__validate_board_index(index)

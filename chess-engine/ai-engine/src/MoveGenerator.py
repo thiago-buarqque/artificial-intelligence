@@ -1,8 +1,8 @@
 import enum
 
-from src import Board
-from src.Piece import PieceType
-from src.utils import is_white_piece, is_same_color
+import Board
+from Piece import PieceType
+from utils import is_white_piece, is_same_color
 
 
 class Offset(enum.Enum):
@@ -20,26 +20,37 @@ class MoveGenerator:
     def __init__(self, board: Board):
         self.board = board
 
+    def __get_knight_position(self, lines_apart: int, new_position: int,
+                              position: int):
+        if self.__get_positions_line_distance(
+                position, new_position) == lines_apart:
+            return new_position
+
+        return -1
+
     def generate_knight_moves(self, position: int):
         positions = [
-            position - 10,
-            position - 17,
-            position - 15,
-            position - 6,
-            position + 6,
-            position + 10,
-            position + 15,
-            position + 17
+            self.__get_knight_position(2, position - 17, position),
+            self.__get_knight_position(2, position - 15, position),
+            self.__get_knight_position(1, position - 10, position),
+            self.__get_knight_position(1, position - 6, position),
+            self.__get_knight_position(1, position + 6, position),
+            self.__get_knight_position(1, position + 10, position),
+            self.__get_knight_position(2, position + 15, position),
+            self.__get_knight_position(2, position + 17, position)
         ]
 
         moves = []
+        knight_piece = self.board.get_piece(position)
         for current_position in positions:
             if self.board.is_valid_position(current_position):
-                piece = self.board.get_piece(current_position)
+                current_piece = self.board.get_piece(current_position)
 
-                if piece == PieceType.Empty or \
-                        (not is_same_color(position, current_position)):
+                if current_piece == PieceType.Empty or \
+                        (not is_same_color(knight_piece, current_piece)):
                     moves.append(current_position)
+
+        return moves
 
     def generate_king_moves(self, opponent_moves: [int], position: int):
         positions = [position - 1,
@@ -52,13 +63,14 @@ class MoveGenerator:
                      position + 9]
 
         moves = []
+        king_piece = self.board.get_piece(position)
         for current_position in positions:
             if self.board.is_valid_position(current_position) and \
                     (current_position not in opponent_moves):
-                piece = self.board.get_piece(current_position)
+                current_piece = self.board.get_piece(current_position)
 
-                if piece == PieceType.Empty or \
-                        (not is_same_color(position, current_position)):
+                if current_piece == PieceType.Empty or \
+                        (not is_same_color(king_piece, current_piece)):
                     moves.append(current_position)
 
         return moves
@@ -123,6 +135,10 @@ class MoveGenerator:
                     and position % 8 == 0:
                 break
 
+            if (offset == Offset.LEFT_SQUARE and position % 8 == 0) or \
+                    (offset == Offset.RIGHT_SQUARE and (position + 1) % 8 == 0):
+                break
+
             current_position = position + ((i + 1) * offset.value)
 
             if not self.board.is_valid_position(current_position):
@@ -154,6 +170,10 @@ class MoveGenerator:
         next_line_position = position + offset
 
         moves: [int] = []
+
+        if not self.board.is_valid_position(next_line_position):
+            return moves
+
         self.__generate_pawn_moves(moves, next_line_position, offset, position,
                                    white_piece)
 
@@ -224,6 +244,22 @@ class MoveGenerator:
             moves.append(right_square + offset)
 
     # Check if a move exposes the king after generating all moves
+
+    def __get_positions_line_distance(self, position1: int, position2: int):
+        line_start1 = position1 - (position1 % 8)
+        line_start2 = position2 - (position2 % 8)
+
+        if line_start1 > line_start2:
+            return int((line_start1 - line_start2) / 8)
+
+        return int((line_start2 - line_start1) / 8)
+
+    def __are_positions_in_the_same_line(self, position1: int, position2: int):
+        line_start1 = position1 - (position1 % 8)
+        line_start2 = position2 - (position2 % 8)
+
+        return line_start1 == line_start2
+
     @staticmethod
     def __is_pawn_first_move(white_piece: bool, piecePosition: int):
         if white_piece and (48 <= piecePosition <= 55):

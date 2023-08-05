@@ -1,7 +1,7 @@
 import unittest
 
-from src.Board import Board
-from src.Piece import (PieceColor, PieceType)
+from Board import Board
+from Piece import (PieceColor, PieceType)
 from test.BaseTest import BaseTest
 
 

@@ -1,9 +1,9 @@
 import unittest
 
-from src.Board import Board
-from src.MoveGenerator import MoveGenerator
-from src.Piece import PieceColor, PieceType
-from src.utils import EMPTY_BOARD_FEN
+from Board import Board
+from MoveGenerator import MoveGenerator
+from Piece import PieceColor, PieceType
+from utils import EMPTY_BOARD_FEN
 from test.BaseTest import BaseTest
 
 
