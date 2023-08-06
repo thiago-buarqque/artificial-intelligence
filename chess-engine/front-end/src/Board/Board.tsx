@@ -1,6 +1,6 @@
 import React, { MouseEventHandler, useEffect, useRef, useState } from "react";
 
-import BoardPiece from "./BoardPiece";
+import BoardPiece, { PIECE_ICONS } from "./BoardPiece";
 import { TBoard, TBoardPiece } from "./types";
 
 //@ts-ignore
@@ -11,6 +11,7 @@ import moveAudio from "../assets/sound/move-self.mp3";
 import http from "../http-common";
 
 import "./board.scss";
+import { INITIAL_FEN } from "./constants";
 
 const LINES = [0, 1, 2, 3, 4, 5, 6, 7];
 const COLUMNS: { [key: number]: string } = {
@@ -28,6 +29,7 @@ const EMPTY_PIECE: TBoardPiece = {
   moves: [],
   position: -1,
   type: null,
+  whitePiece: false
 };
 
 const get_empty_piece = (position: number) => {
@@ -48,8 +50,8 @@ const playMoveAudio = (capture: boolean) => {
   audio.play();
 };
 
-const isNotAnAvailableMove = (availableMoves: number[], position: number) =>
-  !availableMoves.find((move) => move === position);
+const notAnAvailableMove = (availableMoves: number[], position: number) =>
+  availableMoves.find((move) => move === position) === undefined;
 
 const Board = () => {
   const [selectedPiece, setSelectedPiece] = useState<TBoardPiece | null>(null);
@@ -57,12 +59,15 @@ const Board = () => {
     blackCaptures: [],
     whiteCaptures: [],
     pieces: [],
-    winner: null
+    whiteMove: true,
+    winner: null,
   });
 
   const onPieceSelect = (piece: TBoardPiece) => {
-    console.log("Piece click: ", piece.type, piece.position);
-    console.log(piece.moves);
+    if(board.whiteMove !== piece.whitePiece) {
+      // Play invalid move sound
+      return;
+    }
     if (selectedPiece === piece) {
       setSelectedPiece(null);
     } else {
@@ -93,10 +98,11 @@ const Board = () => {
   };
 
   const onMovePiece = (cell: HTMLDivElement, cellPosition: number) => {
+    console.log("Cell click");
     if (selectedPiece) {
       const { position, moves } = selectedPiece;
 
-      if (isNotAnAvailableMove(moves, cellPosition)) {
+      if (notAnAvailableMove(moves, cellPosition)) {
         return;
       }
 
@@ -146,7 +152,30 @@ const Board = () => {
       })
       .then((response) => response.data)
       .then((data) => {
-        setBoard(data)
+        setBoard(data);
+      });
+  };
+
+  const resetBoard = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault()
+    const inputFen: HTMLInputElement | null = document.getElementById(
+      "input-fen"
+    ) as HTMLInputElement;
+
+    if (!inputFen) return;
+
+    let fen = INITIAL_FEN;
+    if (inputFen.value.trim() !== "") {
+      fen = inputFen.value.trim();
+    }
+
+    http
+      .post<TBoard>("/board/load/fen", {
+        fen,
+      })
+      .then((response) => response.data)
+      .then((data) => {
+        setBoard(data);
       });
   };
 
@@ -158,40 +187,60 @@ const Board = () => {
   }, []);
 
   useEffect(() => {
-    if(board.winner) {
-      console.log(`${board.winner} wins!`)
+    console.log(board);
+
+    if (board.winner) {
+      console.log(`${board.winner} wins!`);
     }
-  }, [board])
+  }, [board]);
 
   return (
-    <div id="board">
-      {LINES.map((i) => (
-        <div key={i} className="row">
-          {LINES.map((j) => (
-            <div
-              key={j}
-              className="cell"
-              data-pos={i * 8 + j}
-              onClick={(e) => onMovePiece(e.currentTarget, i * 8 + j)}
-            >
-              {j === 0 && (
-                <span className={`row-index ${(i + 1) % 2 !== 0 ? "white" : ""}`}>{i + 1}</span>
-              )}
-              {i === 7 && (
-                <span className={`column-index ${(j + 1) % 2 === 0 ? "white" : ""}`}>
-                  {COLUMNS[j]}
-                </span>
-              )}
-              {board.pieces[i * 8 + j] && board.pieces[i * 8 + j].type !== null ? (
-                <BoardPiece boardPiece={board.pieces[i * 8 + j]} onClick={onPieceSelect} />
-              ) : (
-                <div className="move-dot"></div>
-              )}
-            </div>
+    <>
+      <form method="post" onSubmit={resetBoard} id="load-fen-form">
+        <input type="text" name="fen" id="input-fen" />
+        <button type="submit" id="reset-btn">
+          Load FEN
+        </button>
+      </form>
+      <div id="board">
+        <div id="white-captures" className="captures">
+          {board.whiteCaptures.map((piece_fen) => (
+            <img className="captured_piece" src={PIECE_ICONS[piece_fen]} alt={piece_fen} />
           ))}
         </div>
-      ))}
-    </div>
+        <div id="black-captures" className="captures">
+          {board.blackCaptures.map((piece_fen) => (
+            <img className="captured_piece" src={PIECE_ICONS[piece_fen]} alt={piece_fen} />
+          ))}
+        </div>
+        {LINES.map((i) => (
+          <div key={i} className="row">
+            {LINES.map((j) => (
+              <div
+                key={j}
+                className="cell"
+                data-pos={i * 8 + j}
+                onClick={(e) => onMovePiece(e.currentTarget, i * 8 + j)}
+              >
+                {j === 0 && (
+                  <span className={`row-index ${(i + 1) % 2 === 0 ? "white" : ""}`}>{8 - i}</span>
+                )}
+                {i === 7 && (
+                  <span className={`column-index ${(j + 1) % 2 !== 0 ? "white" : ""}`}>
+                    {COLUMNS[j]}
+                  </span>
+                )}
+                {board.pieces[i * 8 + j] && board.pieces[i * 8 + j].type !== null ? (
+                  <BoardPiece boardPiece={board.pieces[i * 8 + j]} onClick={onPieceSelect} />
+                ) : (
+                  <div className="move-dot"></div>
+                )}
+              </div>
+            ))}
+          </div>
+        ))}
+      </div>
+    </>
   );
 };
 

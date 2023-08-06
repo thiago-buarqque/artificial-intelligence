@@ -15,7 +15,7 @@ import RookWhite from "../assets/rook-white.svg";
 
 import { TBoardPiece} from "./types";
 
-const PIECE_ICONS: {
+export const PIECE_ICONS: {
   [key: string]: string;
 } = {
   "b": BishopBlack,
@@ -38,7 +38,7 @@ interface IProps {
 }
 
 const BoardPiece: React.FC<IProps> = ({ boardPiece, onClick }) => {
-  const { moves, type, position } = boardPiece;
+  const { type } = boardPiece;
 
   return (
     <button

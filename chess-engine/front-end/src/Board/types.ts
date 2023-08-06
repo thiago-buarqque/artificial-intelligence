@@ -2,10 +2,12 @@ export type TBoard = {
   blackCaptures: string[];
   pieces: TBoardPiece[];
   whiteCaptures: string[];
+  whiteMove: boolean;
   winner: null | "b" | "w"
 };
 
 export type TBoardPiece = {
+  whitePiece: boolean;
   moves: number[];
   position: number;
   type: string | null;

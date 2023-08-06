@@ -1,4 +1,4 @@
-from Piece import PieceColor, PieceType
+from model.Piece import PieceColor, PieceType
 
 
 def is_white_piece(pieceValue):

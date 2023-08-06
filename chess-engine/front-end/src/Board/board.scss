@@ -8,13 +8,34 @@ div#board {
   grid-template-rows: repeat(8, 1fr);
   aspect-ratio: 1;
 
+  position: relative;
+
+  .captures {
+    width: 50%;
+    position: absolute;
+    left: 0;
+    height: 24px;
+
+    .captured_piece {
+      width: 24px;
+    }
+  }
+
+  .captures#black-captures {
+    top: -32px;
+  }
+
+  .captures#white-captures {
+    bottom: -32px;
+  }
+
   .row {
     width: 100%;
 
     display: grid;
     grid-template-columns: repeat(8, 1fr);
 
-    &:nth-child(odd) {
+    &:nth-child(even) {
       .cell:nth-child(even) {
         background-color: #fff;
       }
@@ -23,7 +44,7 @@ div#board {
       }
     }
 
-    &:nth-child(even) {
+    &:nth-child(odd) {
       .cell:nth-child(odd) {
         background-color: #fff;
       }
@@ -92,6 +113,10 @@ div#board {
         border: none;
         outline: none;
 
+        &.disabled {
+          pointer-events: none;
+        }
+
         .piece {
           pointer-events: none;
           width: 70%;
@@ -100,4 +125,10 @@ div#board {
       }
     }
   }
+}
+
+form#load-fen-form {
+  position: absolute;
+  top: 32px;
+  left: 32px;
 }

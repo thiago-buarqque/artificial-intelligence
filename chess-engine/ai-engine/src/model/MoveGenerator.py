@@ -1,8 +1,8 @@
 import enum
 
-import Board
-from Piece import PieceType
-from utils import is_white_piece, is_same_color
+import model.Board as Board
+from model.Piece import PieceType
+from model.utils import is_white_piece, is_same_color
 
 
 class Offset(enum.Enum):
@@ -17,7 +17,7 @@ class Offset(enum.Enum):
 
 
 class MoveGenerator:
-    def __init__(self, board: Board):
+    def __init__(self, board: 'Board'):
         self.board = board
 
     def __get_knight_position(self, lines_apart: int, new_position: int,
@@ -52,28 +52,76 @@ class MoveGenerator:
 
         return moves
 
-    def generate_king_moves(self, opponent_moves: [int], position: int):
-        positions = [position - 1,
-                     position + 1,
-                     position - 9,
-                     position - 8,
-                     position - 7,
-                     position + 7,
-                     position + 8,
-                     position + 9]
+    def generate_king_moves(self, opponent_moves: [int], king_position: int):
+        positions = [king_position - 1,
+                     king_position + 1,
+                     king_position - 9,
+                     king_position - 8,
+                     king_position - 7,
+                     king_position + 7,
+                     king_position + 8,
+                     king_position + 9]
 
         moves = []
-        king_piece = self.board.get_piece(position)
-        for current_position in positions:
-            if self.board.is_valid_position(current_position) and \
-                    (current_position not in opponent_moves):
-                current_piece = self.board.get_piece(current_position)
+        king = self.board.get_piece(king_position)
+        for position in positions:
+            if self.board.is_valid_position(position) and \
+                    (position not in opponent_moves):
+                piece = self.board.get_piece(position)
 
-                if current_piece == PieceType.Empty or \
-                        (not is_same_color(king_piece, current_piece)):
-                    moves.append(current_position)
+                if piece == PieceType.Empty or \
+                        (not is_same_color(king, piece)):
+                    moves.append(position)
+
+        if king_position not in opponent_moves:
+            self.__generate_castle_moves(king, moves,
+                                         opponent_moves, king_position)
 
         return moves
+
+    def __generate_castle_moves(self, king_piece: int, moves: [int],
+                                opponent_moves: [int], position: int):
+        white_piece = is_white_piece(king_piece)
+
+        if (white_piece and not self.board.white_king_moved) or \
+                (not white_piece and not self.board.black_king_moved):
+            def rook_path_clear(start, end, step):
+                for i in range(start, end, step):
+                    if self.board.get_piece(i) != PieceType.Empty:
+                        return False
+                return True
+
+            def attacked(n: int):
+                return n in opponent_moves
+
+            QUEEN_SIDE_ROOK_POSITION = 56 if white_piece else 0
+            KING_SIDE_ROOK_POSITION = 63 if white_piece else 7
+
+            ABLE_TO_CASTLE_QUEEN_SIDE = False
+            if (white_piece and self.board.white_able_to_queen_castle) or \
+                    (not white_piece and self.board.black_able_to_queen_castle):
+                ABLE_TO_CASTLE_QUEEN_SIDE = True
+
+            ABLE_TO_CASTLE_KING_SIDE = False
+            if (white_piece and self.board.white_able_to_king_castle) or \
+                    (not white_piece and self.board.black_able_to_king_castle):
+                ABLE_TO_CASTLE_KING_SIDE = True
+
+            if ABLE_TO_CASTLE_QUEEN_SIDE and \
+                    rook_path_clear(position - 1, QUEEN_SIDE_ROOK_POSITION, -1):
+                new_position = position - 2
+
+                if not attacked(new_position) and \
+                        not attacked(position - 1):
+                    moves.append(new_position)
+
+            if ABLE_TO_CASTLE_KING_SIDE and \
+                    rook_path_clear(position + 1, KING_SIDE_ROOK_POSITION, 1):
+                new_position = position + 2
+
+                if not attacked(new_position) and \
+                        not attacked(position + 1):
+                    moves.append(new_position)
 
     def generate_queen_moves(self, position: int):
         moves = []
@@ -234,18 +282,18 @@ class MoveGenerator:
         left_square = position - 1
         right_square = position + 1
 
-        en_passants = self.board.black_en_passants if white_piece \
-            else self.board.white_en_passants
+        en_passant = self.board.black_en_passant if white_piece \
+            else self.board.white_en_passant
 
-        if left_square in en_passants:
+        if left_square == en_passant:
             moves.append(left_square + offset)
-
-        if right_square in en_passants:
+        elif right_square == en_passant:
             moves.append(right_square + offset)
 
     # Check if a move exposes the king after generating all moves
 
-    def __get_positions_line_distance(self, position1: int, position2: int):
+    @staticmethod
+    def __get_positions_line_distance(position1: int, position2: int):
         line_start1 = position1 - (position1 % 8)
         line_start2 = position2 - (position2 % 8)
 
@@ -253,12 +301,6 @@ class MoveGenerator:
             return int((line_start1 - line_start2) / 8)
 
         return int((line_start2 - line_start1) / 8)
-
-    def __are_positions_in_the_same_line(self, position1: int, position2: int):
-        line_start1 = position1 - (position1 % 8)
-        line_start2 = position2 - (position2 % 8)
-
-        return line_start1 == line_start2
 
     @staticmethod
     def __is_pawn_first_move(white_piece: bool, piecePosition: int):
