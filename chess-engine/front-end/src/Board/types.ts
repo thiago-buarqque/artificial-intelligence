@@ -7,10 +7,10 @@ export type TBoard = {
 };
 
 export type TBoardPiece = {
-  whitePiece: boolean;
+  white: boolean;
   moves: number[];
   position: number;
-  type: string | null;
+  fen: string | null;
   // Add castle/check/blocked info?
 };
 

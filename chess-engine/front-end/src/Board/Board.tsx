@@ -28,8 +28,8 @@ const COLUMNS: { [key: number]: string } = {
 const EMPTY_PIECE: TBoardPiece = {
   moves: [],
   position: -1,
-  type: null,
-  whitePiece: false
+  fen: null,
+  white: false
 };
 
 const get_empty_piece = (position: number) => {
@@ -64,7 +64,7 @@ const Board = () => {
   });
 
   const onPieceSelect = (piece: TBoardPiece) => {
-    if(board.whiteMove !== piece.whitePiece) {
+    if(board.whiteMove !== piece.white) {
       // Play invalid move sound
       return;
     }
@@ -82,7 +82,7 @@ const Board = () => {
 
   const togglePieceAvailableMoves = (piece: TBoardPiece) => {
     piece.moves.forEach((move) => {
-      const className = board.pieces[move].type ? "capture-receptor" : "empty-receptor";
+      const className = board.pieces[move].fen ? "capture-receptor" : "empty-receptor";
 
       const cell = document.querySelector(`.cell[data-pos='${move}']`) as HTMLDivElement;
 
@@ -109,7 +109,7 @@ const Board = () => {
       const copy_board: TBoard = JSON.parse(JSON.stringify(board));
 
       let capture = false;
-      if (copy_board.pieces[cellPosition].type !== null) {
+      if (copy_board.pieces[cellPosition].fen !== null) {
         capture = true;
       }
 
@@ -183,11 +183,14 @@ const Board = () => {
     http
       .get<TBoard>("/board")
       .then((response) => response.data)
-      .then((data) => setBoard(data));
+      .then((data) => {
+        console.log("Setting board", data);
+        setBoard(data)
+      });
   }, []);
 
   useEffect(() => {
-    console.log(board);
+    // console.log(board);
 
     if (board.winner) {
       console.log(`${board.winner} wins!`);
@@ -230,7 +233,7 @@ const Board = () => {
                     {COLUMNS[j]}
                   </span>
                 )}
-                {board.pieces[i * 8 + j] && board.pieces[i * 8 + j].type !== null ? (
+                {board.pieces[i * 8 + j] && board.pieces[i * 8 + j].fen !== null ? (
                   <BoardPiece boardPiece={board.pieces[i * 8 + j]} onClick={onPieceSelect} />
                 ) : (
                   <div className="move-dot"></div>

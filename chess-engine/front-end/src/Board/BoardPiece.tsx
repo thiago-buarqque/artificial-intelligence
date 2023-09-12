@@ -38,7 +38,7 @@ interface IProps {
 }
 
 const BoardPiece: React.FC<IProps> = ({ boardPiece, onClick }) => {
-  const { type } = boardPiece;
+  const { fen: type } = boardPiece;
 
   return (
     <button
