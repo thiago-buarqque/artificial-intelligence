@@ -285,9 +285,9 @@ class MoveGenerator:
         en_passant = self.board.black_en_passant if white_piece \
             else self.board.white_en_passant
 
-        if left_square == en_passant:
+        if left_square == (en_passant + 8 if white_piece else en_passant - 8):
             moves.append(left_square + offset)
-        elif right_square == en_passant:
+        elif right_square == (en_passant + 8 if white_piece else en_passant - 8):
             moves.append(right_square + offset)
 
     # Check if a move exposes the king after generating all moves
