@@ -5,39 +5,41 @@ from model.Piece import PieceType
 from model.utils import is_white_piece, is_same_color
 
 
-class Offset(enum.Enum):
-    BOTTOM_LINE = 8
-    TOP_LINE = -8
-    TOP_RIGHT_DIAGONAL = -7
-    TOP_LEFT_DIAGONAL = -9
-    BOTTOM_RIGHT_DIAGONAL = 9
-    BOTTOM_LEFT_DIAGONAL = 7
-    LEFT_SQUARE = -1
-    RIGHT_SQUARE = 1
+class SquareOffset(enum.Enum):
+    LINE_BELOW = 8
+    LINE_ABOVE = -8
+    TOP_RIGHT = -7
+    TOP_LEFT = -9
+    BOTTOM_RIGHT = 9
+    BOTTOM_LEFT = 7
+    LEFT = -1
+    RIGHT = 1
 
 
 class MoveGenerator:
     def __init__(self, board: 'Board'):
         self.board = board
 
-    def __get_knight_position(self, lines_apart: int, new_position: int,
-                              position: int):
+    def __validate_knight_position(self, lines_apart: int, new_position: int,
+                                   position: int):
+
         if self.__get_positions_line_distance(
                 position, new_position) == lines_apart:
+
             return new_position
 
         return -1
 
     def generate_knight_moves(self, position: int):
         positions = [
-            self.__get_knight_position(2, position - 17, position),
-            self.__get_knight_position(2, position - 15, position),
-            self.__get_knight_position(1, position - 10, position),
-            self.__get_knight_position(1, position - 6, position),
-            self.__get_knight_position(1, position + 6, position),
-            self.__get_knight_position(1, position + 10, position),
-            self.__get_knight_position(2, position + 15, position),
-            self.__get_knight_position(2, position + 17, position)
+            self.__validate_knight_position(2, position - 17, position),
+            self.__validate_knight_position(2, position - 15, position),
+            self.__validate_knight_position(1, position - 10, position),
+            self.__validate_knight_position(1, position - 6, position),
+            self.__validate_knight_position(1, position + 6, position),
+            self.__validate_knight_position(1, position + 10, position),
+            self.__validate_knight_position(2, position + 15, position),
+            self.__validate_knight_position(2, position + 17, position)
         ]
 
         moves = []
@@ -52,7 +54,7 @@ class MoveGenerator:
 
         return moves
 
-    def generate_king_moves(self, opponent_moves: [int], king_position: int):
+    def generate_king_moves(self, opponent_moves: list[int], king_position: int):
         positions = [king_position - 1,
                      king_position + 1,
                      king_position - 9,
@@ -79,48 +81,59 @@ class MoveGenerator:
 
         return moves
 
-    def __generate_castle_moves(self, king_piece: int, moves: [int],
-                                opponent_moves: [int], position: int):
-        white_piece = is_white_piece(king_piece)
+    def __generate_castle_moves(self, king_piece: int, moves: list[int],
+                                opponent_moves: list[int], position: int):
 
-        if (white_piece and not self.board.white_king_moved) or \
-                (not white_piece and not self.board.black_king_moved):
-            def rook_path_clear(start, end, step):
-                for i in range(start, end, step):
-                    if self.board.get_piece(i) != PieceType.Empty:
-                        return False
-                return True
+        def is_path_clear(start, end, step):
+            for i in range(start, end, step):
+                if self.board.get_piece(i) != PieceType.Empty:
+                    return False
 
-            def attacked(n: int):
-                return n in opponent_moves
+            return True
 
-            QUEEN_SIDE_ROOK_POSITION = 56 if white_piece else 0
-            KING_SIDE_ROOK_POSITION = 63 if white_piece else 7
+        def position_is_not_attacked(n: int):
+            return n not in opponent_moves
 
-            ABLE_TO_CASTLE_QUEEN_SIDE = False
-            if (white_piece and self.board.white_able_to_queen_castle) or \
-                    (not white_piece and self.board.black_able_to_queen_castle):
-                ABLE_TO_CASTLE_QUEEN_SIDE = True
+        def is_able_to_castle_queen_side(white_king):
+            return (white_king and self.board.white_able_to_queen_castle) or \
+                (not white_king and self.board.black_able_to_queen_castle)
 
-            ABLE_TO_CASTLE_KING_SIDE = False
-            if (white_piece and self.board.white_able_to_king_castle) or \
-                    (not white_piece and self.board.black_able_to_king_castle):
-                ABLE_TO_CASTLE_KING_SIDE = True
+        def is_able_to_castle_king_side(white_king):
+            return (white_king and self.board.white_able_to_king_castle) or \
+                    (not white_king and self.board.black_able_to_king_castle)
 
-            if ABLE_TO_CASTLE_QUEEN_SIDE and \
-                    rook_path_clear(position - 1, QUEEN_SIDE_ROOK_POSITION, -1):
+        is_white_king = is_white_piece(king_piece)
+
+        if (is_white_king and not self.board.white_king_moved) or \
+                (not is_white_king and not self.board.black_king_moved):
+
+            queen_side_rook_position = 56 if is_white_king else 0
+            king_side_rook_position = 63 if is_white_king else 7
+
+            able_to_castle_queen_side = \
+                is_able_to_castle_queen_side(is_white_king)
+
+            able_to_castle_king_side = \
+                is_able_to_castle_king_side(is_white_king)
+
+            if able_to_castle_queen_side and \
+                    is_path_clear(position - 1, queen_side_rook_position, -1):
+
                 new_position = position - 2
 
-                if not attacked(new_position) and \
-                        not attacked(position - 1):
+                if position_is_not_attacked(new_position) and \
+                        position_is_not_attacked(position - 1):
+
                     moves.append(new_position)
 
-            if ABLE_TO_CASTLE_KING_SIDE and \
-                    rook_path_clear(position + 1, KING_SIDE_ROOK_POSITION, 1):
+            if able_to_castle_king_side and \
+                    is_path_clear(position + 1, king_side_rook_position, 1):
+
                 new_position = position + 2
 
-                if not attacked(new_position) and \
-                        not attacked(position + 1):
+                if position_is_not_attacked(new_position) and \
+                        position_is_not_attacked(position + 1):
+
                     moves.append(new_position)
 
     def generate_queen_moves(self, position: int):
@@ -138,16 +151,16 @@ class MoveGenerator:
         moves = []
 
         self.__generate_sliding_moves(moves, piece, position,
-                                      Offset.TOP_LEFT_DIAGONAL)
+                                      SquareOffset.TOP_LEFT)
 
         self.__generate_sliding_moves(moves, piece, position,
-                                      Offset.TOP_RIGHT_DIAGONAL)
+                                      SquareOffset.TOP_RIGHT)
 
         self.__generate_sliding_moves(moves, piece, position,
-                                      Offset.BOTTOM_LEFT_DIAGONAL)
+                                      SquareOffset.BOTTOM_LEFT)
 
         self.__generate_sliding_moves(moves, piece, position,
-                                      Offset.BOTTOM_RIGHT_DIAGONAL)
+                                      SquareOffset.BOTTOM_RIGHT)
 
         return moves
 
@@ -156,35 +169,35 @@ class MoveGenerator:
 
         moves = []
 
-        self.__generate_sliding_moves(moves, piece, position, Offset.TOP_LINE)
+        self.__generate_sliding_moves(moves, piece, position, SquareOffset.LINE_ABOVE)
 
         self.__generate_sliding_moves(moves, piece, position,
-                                      Offset.LEFT_SQUARE)
+                                      SquareOffset.LEFT)
 
         self.__generate_sliding_moves(moves, piece, position,
-                                      Offset.RIGHT_SQUARE)
+                                      SquareOffset.RIGHT)
 
         self.__generate_sliding_moves(moves, piece, position,
-                                      Offset.BOTTOM_LINE)
+                                      SquareOffset.LINE_BELOW)
 
         return moves
 
-    def __generate_sliding_moves(self, moves: [int], piece: int,
+    def __generate_sliding_moves(self, moves: list[int], piece: int,
                                  position: int,
-                                 offset: Offset):
+                                 offset: SquareOffset):
         for i in range(7):
-            if (offset == Offset.BOTTOM_RIGHT_DIAGONAL or
-                offset == Offset.TOP_RIGHT_DIAGONAL) and \
+            if (offset == SquareOffset.BOTTOM_RIGHT or
+                offset == SquareOffset.TOP_RIGHT) and \
                     (position + 1) % 8 == 0:
                 break
 
-            if (offset == Offset.BOTTOM_LEFT_DIAGONAL or
-                offset == Offset.TOP_LEFT_DIAGONAL) \
+            if (offset == SquareOffset.BOTTOM_LEFT or
+                offset == SquareOffset.TOP_LEFT) \
                     and position % 8 == 0:
                 break
 
-            if (offset == Offset.LEFT_SQUARE and position % 8 == 0) or \
-                    (offset == Offset.RIGHT_SQUARE and (position + 1) % 8 == 0):
+            if (offset == SquareOffset.LEFT and position % 8 == 0) or \
+                    (offset == SquareOffset.RIGHT and (position + 1) % 8 == 0):
                 break
 
             current_position = position + ((i + 1) * offset.value)
@@ -202,12 +215,14 @@ class MoveGenerator:
             else:
                 break
 
-            if offset != Offset.TOP_LINE and offset != Offset.BOTTOM_LINE:
-                is_right_offset = offset == Offset.RIGHT_SQUARE or \
-                                  offset == Offset.TOP_RIGHT_DIAGONAL or \
-                                  offset == Offset.BOTTOM_RIGHT_DIAGONAL
+            if (offset != SquareOffset.LINE_ABOVE and
+                    offset != SquareOffset.LINE_BELOW):
 
-                if (current_position + (1 if is_right_offset else 0)) % 8 == 0:
+                right_offset = offset == SquareOffset.RIGHT or \
+                                  offset == SquareOffset.TOP_RIGHT or \
+                                  offset == SquareOffset.BOTTOM_RIGHT
+
+                if (current_position + (1 if right_offset else 0)) % 8 == 0:
                     break
 
     def generate_pawn_moves(self, position: int):
@@ -217,7 +232,7 @@ class MoveGenerator:
 
         next_line_position = position + offset
 
-        moves: [int] = []
+        moves: list[int] = []
 
         if not self.board.is_valid_position(next_line_position):
             return moves
@@ -232,7 +247,7 @@ class MoveGenerator:
 
         return moves
 
-    def __generate_pawn_moves(self, moves: [int], next_line_position: int,
+    def __generate_pawn_moves(self, moves: list[int], next_line_position: int,
                               offset: int, position: int, white_piece: bool):
         if self.board.is_valid_position(next_line_position):
             existing_piece = self.board.get_piece(next_line_position)
@@ -248,7 +263,7 @@ class MoveGenerator:
             if existing_piece == PieceType.Empty:
                 moves.append(two_lines_position)
 
-    def __generate_pawn_capturing_moves(self, moves: [int],
+    def __generate_pawn_capturing_moves(self, moves: list[int],
                                         next_line_position: int,
                                         position: int, white_piece: bool):
         diagonal_left = next_line_position - 1
@@ -277,13 +292,17 @@ class MoveGenerator:
                     is_white_piece(existing_piece) != white_piece:
                 moves.append(diagonal_right)
 
-    def __generate_en_passant_moves(self, moves: [int], offset: int,
+    def __generate_en_passant_moves(self, moves: list[int], offset: int,
                                     position: int, white_piece: bool):
-        left_square = position - 1
-        right_square = position + 1
+
+        left_square = position - 1 if position % 8 != 0 else -1
+        right_square = position + 1 if (position + 1) % 8 != 0 else -1
 
         en_passant = self.board.black_en_passant if white_piece \
             else self.board.white_en_passant
+
+        if en_passant == -1:
+            return
 
         if left_square == (en_passant + 8 if white_piece else en_passant - 8):
             moves.append(left_square + offset)

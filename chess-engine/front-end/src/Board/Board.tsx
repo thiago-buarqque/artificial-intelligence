@@ -225,6 +225,7 @@ const Board = () => {
                 data-pos={i * 8 + j}
                 onClick={(e) => onMovePiece(e.currentTarget, i * 8 + j)}
               >
+                <span className="cell-index">{i * 8 + j}</span>
                 {j === 0 && (
                   <span className={`row-index ${(i + 1) % 2 === 0 ? "white" : ""}`}>{8 - i}</span>
                 )}

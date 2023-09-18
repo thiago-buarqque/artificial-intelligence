@@ -30,7 +30,7 @@ PIECE_SYMBOLS = {
 }
 
 
-def pieces_to_fen(pieces: [int]):
+def pieces_to_fen(pieces: list[int]):
     result = []
     for piece in pieces:
         result.append(piece_fen_from_value(piece))

@@ -8,7 +8,7 @@ class BoardDTO(DTO):
                       blackCaptures=board.black_captures_to_fen(),
                       pieces=board.get_available_moves(),
                       whiteCaptures=board.white_captures_to_fen(),
-                      winner=board.get_winner(),
+                      winner=board.get_winner_fen(),
                       whiteMove=board.is_white_move,
                       whiteEnPassant=board.white_en_passant,
                       blackEnPassant=board.black_en_passant

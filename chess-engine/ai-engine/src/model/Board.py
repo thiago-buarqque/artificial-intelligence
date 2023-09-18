@@ -2,7 +2,7 @@ from typing import Union
 
 import numpy as np
 
-from model.dto.BoardPieceDTO import BoardPiece
+from model.BoardPiece import BoardPiece
 from model.MoveGenerator import MoveGenerator
 from model.Piece import (
     PieceColor,
@@ -10,33 +10,44 @@ from model.Piece import (
     PIECE_SYMBOLS,
     piece_fen_from_value,
     get_piece_type, pieces_to_fen, piece_value_from_fen, is_piece_of_type)
+from model.dto.BoardPieceDTO import BoardPieceDTO
 from model.utils import is_white_piece, INITIAL_FEN
 
 
 class Board:
     def __init__(self):
-        self.squares: [int] = list(np.repeat(0, 64))  # Starting from top left
-        self.white_captures: [int] = []
-        self.black_captures: [int] = []
+        self.squares: list[int] = list(
+            np.repeat(0, 64))  # Starting from top left
+        self.white_captures: list[int] = []
+        self.black_captures: list[int] = []
 
-        self.black_en_passant: int = -1
-        self.white_en_passant: int = -1
+        self.black_en_passant = -1
+        self.white_en_passant = -1
 
         self.black_king_moved = False
         self.white_king_moved = False
 
-        self.is_white_move: bool = True
-        self.half_moves: int = 0
-        self.full_moves: int = 0
+        self.is_white_move = True
+        self.half_moves = 0
+        self.full_moves = 0
 
         self.is_white_in_check: bool = False
         self.is_black_in_check: bool = False
 
-        self.move_generator: MoveGenerator = MoveGenerator(self)
+        self.move_generator = MoveGenerator(self)
 
         self.winner: Union[None, PieceColor.Black, PieceColor.White] = None
 
         self.load_position(INITIAL_FEN)
+
+        self.generate_functions = {
+            PieceType.Empty: lambda *args: [],
+            PieceType.Bishop: self.move_generator.generate_bishop_moves,
+            PieceType.Knight: self.move_generator.generate_knight_moves,
+            PieceType.Pawn: self.move_generator.generate_pawn_moves,
+            PieceType.Queen: self.move_generator.generate_queen_moves,
+            PieceType.Rook: self.move_generator.generate_rook_moves
+        }
 
     def __reset(self):
         self.squares = np.repeat(0, 64)  # Starting from top left
@@ -67,18 +78,9 @@ class Board:
         return pieces_to_fen(self.black_captures)
 
     def get_available_moves(self):
-        generate_functions = {
-            PieceType.Empty: lambda *args: [],
-            PieceType.Bishop: self.move_generator.generate_bishop_moves,
-            PieceType.Knight: self.move_generator.generate_knight_moves,
-            PieceType.Pawn: self.move_generator.generate_pawn_moves,
-            PieceType.Queen: self.move_generator.generate_queen_moves,
-            PieceType.Rook: self.move_generator.generate_rook_moves
-        }
-
         black_moves = []
         white_moves = []
-        pieces: [BoardPiece] = []
+        pieces: list[Union[BoardPiece, None]] = []
 
         white_king_position = -1
         black_king_position = -1
@@ -95,16 +97,14 @@ class Board:
 
                 pieces.append(None)
             else:
-                # TODO Refactor to a to_json_object o something, this shouldn't
-                # be in this class.
-                moves = generate_functions[piece_type](position)
+                moves = self.generate_functions[piece_type](position)
 
                 piece_fen = piece_fen_from_value(piece) \
                     if not is_piece_of_type(piece, PieceType.Empty) else None
 
                 pieces.append(BoardPiece(moves=moves, position=position,
-                                         fen=piece_fen,
-                                         white=white_piece))
+                                            fen=piece_fen,
+                                            white=white_piece))
 
                 if white_piece:
                     white_moves += moves
@@ -115,8 +115,68 @@ class Board:
                                         pieces, white_king_position,
                                         white_moves)
 
-        # Check for invalid moves
-        return pieces
+        self.__remove_invalid_moves(
+            pieces, black_king_position, white_king_position)
+
+        # send just the not None pieces to conserve network
+        return [BoardPieceDTO.from_board_piece(piece) for piece in pieces]
+
+    # This is slow, refactor this
+    def __remove_invalid_moves(
+            self, pieces: list[Union[BoardPiece, None]],
+            black_king_position: int, white_king_position: int):
+
+        for board_piece in pieces:
+            piece_position = board_piece.position
+            piece_value = self.get_piece(piece_position)
+
+            if ((board_piece is None) or
+                    get_piece_type(piece_value) == PieceType.King):
+
+                continue
+
+            invalid_moves = []
+
+            for move in board_piece.moves:
+                target_square_piece_value = self.get_piece(move)
+                self.squares[piece_position] = PieceType.Empty
+                self.squares[move] = piece_value
+
+                opponent_next_moves = \
+                    self.__get_player_moves(not self.is_white_move)
+
+                if (self.is_white_move and
+                    white_king_position in opponent_next_moves) or \
+                        (not self.is_white_move and
+                         black_king_position in opponent_next_moves):
+
+                    invalid_moves.append(move)
+
+                self.squares[piece_position] = piece_value
+                self.squares[move] = target_square_piece_value
+
+            for invalid_move in invalid_moves:
+                board_piece.moves.remove(invalid_move)
+
+    def __get_player_moves(self, white_player: bool):
+        all_moves: list[int] = []
+
+        for position, piece in enumerate(self.squares):
+            white_piece = is_white_piece(piece)
+
+            if (white_piece and not white_player) or \
+                    (not white_piece and white_player):
+                continue
+
+            piece_type = get_piece_type(piece)
+
+            if piece_type == PieceType.King:
+                continue
+            else:
+                all_moves += self.generate_functions[piece_type](
+                    position)
+
+        return all_moves
 
     def __get_king_available_moves(self, black_king_position, black_moves,
                                    board_pieces, white_king_position,
@@ -136,13 +196,15 @@ class Board:
 
         board_pieces[white_king_position] = \
             BoardPiece(moves=white_king_moves, position=white_king_position,
-                       fen=piece_fen_from_value(PieceColor.White | PieceType.King),
-                       white=True)
+                          fen=piece_fen_from_value(
+                              PieceColor.White | PieceType.King),
+                          white=True)
 
         board_pieces[black_king_position] = \
             BoardPiece(moves=black_king_moves, position=black_king_position,
-                       fen=piece_fen_from_value(PieceColor.Black | PieceType.King),
-                       white=False)
+                          fen=piece_fen_from_value(
+                              PieceColor.Black | PieceType.King),
+                          white=False)
 
     def place_piece(self, index: int, piece: int):
         self.__validate_board_index(index)
@@ -166,7 +228,7 @@ class Board:
 
         self.squares[index] = piece
 
-    def get_winner(self):
+    def get_winner_fen(self):
         if self.winner is not None:
             return {
                 PieceColor.White: "w",
@@ -241,11 +303,11 @@ class Board:
 
         if white_piece:
             self.white_captures.append(self.squares[self.black_en_passant + 8])
-            self.squares[self.black_en_passant] = PieceType.Empty
+            self.squares[self.black_en_passant + 8] = PieceType.Empty
             self.black_en_passant = -1
         else:
             self.black_captures.append(self.squares[self.white_en_passant - 8])
-            self.squares[self.white_en_passant] = PieceType.Empty
+            self.squares[self.white_en_passant - 8] = PieceType.Empty
             self.white_en_passant = -1
 
     def __is_en_passant_capture(self, piece: int, to_index: int):
@@ -320,11 +382,12 @@ class Board:
             is_white = False
             if row == 3:
                 is_white = True
-                row = 5
-            else:
                 row = 4
+            else:
+                row = 3
 
-            position = ((ord(column) - 97) + (row * 8)) - 8
+            LETTER_A_UNICODE = 97
+            position = ((ord(column) - LETTER_A_UNICODE) + (row * 8)) - 8
 
             if is_white:
                 self.white_en_passant = position
