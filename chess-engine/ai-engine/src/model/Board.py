@@ -16,8 +16,8 @@ from model.utils import is_white_piece, INITIAL_FEN
 
 class Board:
     def __init__(self):
-        self.squares: list[int] = list(
-            np.repeat(0, 64))  # Starting from top left
+        # Starting from top left
+        self.squares: list[int] = list(np.repeat(0, 64))
         self.white_captures: list[int] = []
         self.black_captures: list[int] = []
 
@@ -103,8 +103,8 @@ class Board:
                     if not is_piece_of_type(piece, PieceType.Empty) else None
 
                 pieces.append(BoardPiece(moves=moves, position=position,
-                                            fen=piece_fen,
-                                            white=white_piece))
+                                         fen=piece_fen,
+                                         white=white_piece))
 
                 if white_piece:
                     white_moves += moves
@@ -115,66 +115,75 @@ class Board:
                                         pieces, white_king_position,
                                         white_moves)
 
-        self.__remove_invalid_moves(
+        self.__remove_blocked_piece_moves(
             pieces, black_king_position, white_king_position)
 
         # send just the not None pieces to conserve network
         return [BoardPieceDTO.from_board_piece(piece) for piece in pieces]
 
     # This is slow, refactor this
-    def __remove_invalid_moves(
+    # Only check for sliding pieces
+    def __remove_blocked_piece_moves(
             self, pieces: list[Union[BoardPiece, None]],
             black_king_position: int, white_king_position: int):
 
+        king_position = white_king_position if self.is_white_move \
+            else black_king_position
+
+        player_moves = []
+
         for board_piece in pieces:
+            if board_piece is None:
+                continue
+
             piece_position = board_piece.position
             piece_value = self.get_piece(piece_position)
-
-            if ((board_piece is None) or
-                    get_piece_type(piece_value) == PieceType.King):
-
-                continue
 
             invalid_moves = []
 
             for move in board_piece.moves:
                 target_square_piece_value = self.get_piece(move)
+
+                # Perform temporary move
                 self.squares[piece_position] = PieceType.Empty
                 self.squares[move] = piece_value
 
                 opponent_next_moves = \
-                    self.__get_player_moves(not self.is_white_move)
+                    self.__get_player_moves_from_current_board(
+                        not self.is_white_move)
 
-                if (self.is_white_move and
-                    white_king_position in opponent_next_moves) or \
-                        (not self.is_white_move and
-                         black_king_position in opponent_next_moves):
-
+                # Will the king be in check if he moves?
+                # Or will the king be in check if the piece moves?
+                if ((get_piece_type(piece_value) == PieceType.King) and
+                    (move in opponent_next_moves)) or \
+                        king_position in opponent_next_moves:
                     invalid_moves.append(move)
 
+                # Undo temporary move
                 self.squares[piece_position] = piece_value
                 self.squares[move] = target_square_piece_value
 
             for invalid_move in invalid_moves:
                 board_piece.moves.remove(invalid_move)
 
-    def __get_player_moves(self, white_player: bool):
+            if is_white_piece(piece_value) == self.is_white_move:
+                player_moves += board_piece.moves
+
+        if len(player_moves) == 0:
+            self.winner = PieceColor.Black if self.is_white_move \
+                else PieceColor.White
+
+    def __get_player_moves_from_current_board(self, is_white_player: bool):
         all_moves: list[int] = []
 
         for position, piece in enumerate(self.squares):
-            white_piece = is_white_piece(piece)
-
-            if (white_piece and not white_player) or \
-                    (not white_piece and white_player):
+            if is_white_piece(piece) != is_white_player:
                 continue
 
             piece_type = get_piece_type(piece)
 
-            if piece_type == PieceType.King:
-                continue
-            else:
-                all_moves += self.generate_functions[piece_type](
-                    position)
+            if piece_type != PieceType.King:
+                all_moves += self.generate_functions[piece_type](position)
 
         return all_moves
 
@@ -196,15 +205,15 @@ class Board:
 
         board_pieces[white_king_position] = \
             BoardPiece(moves=white_king_moves, position=white_king_position,
-                          fen=piece_fen_from_value(
-                              PieceColor.White | PieceType.King),
-                          white=True)
+                       fen=piece_fen_from_value(
+                           PieceColor.White | PieceType.King),
+                       white=True)
 
         board_pieces[black_king_position] = \
             BoardPiece(moves=black_king_moves, position=black_king_position,
-                          fen=piece_fen_from_value(
-                              PieceColor.Black | PieceType.King),
-                          white=False)
+                       fen=piece_fen_from_value(
+                           PieceColor.Black | PieceType.King),
+                       white=False)
 
     def place_piece(self, index: int, piece: int):
         self.__validate_board_index(index)
@@ -269,9 +278,11 @@ class Board:
     def __handle_king_move(self, from_index, moving_piece, to_index):
         white_piece = is_white_piece(moving_piece)
 
-        CASTLE_MOVE = abs(from_index - to_index) == 2
-        if CASTLE_MOVE and ((white_piece and not self.white_king_moved) or
-                            (not white_piece and not self.black_king_moved)):
+        is_castle_move = abs(from_index - to_index) == 2
+        if is_castle_move and \
+                ((white_piece and not self.white_king_moved) or
+                 (not white_piece and not self.black_king_moved)):
+
             self.__castle(from_index, to_index, white_piece)
 
         if white_piece:
@@ -280,13 +291,13 @@ class Board:
             self.black_king_moved = True
 
     def __castle(self, from_index: int, to_index: int, white_piece: bool):
-        QUEEN_SIDE_ROOK_POSITION = 56 if white_piece else 0
-        KING_SIDE_ROOK_POSITION = 63 if white_piece else 7
+        queen_side_rook_position = 56 if white_piece else 0
+        king_side_rook_position = 63 if white_piece else 7
 
-        ROOK_POSITION = QUEEN_SIDE_ROOK_POSITION \
-            if from_index > to_index else KING_SIDE_ROOK_POSITION
+        rook_position = queen_side_rook_position \
+            if from_index > to_index else king_side_rook_position
 
-        NEW_ROOK_POSITION = from_index - 1 \
+        new_rook_position = from_index - 1 \
             if from_index > to_index else from_index + 1
 
         if white_piece:
@@ -296,7 +307,7 @@ class Board:
             self.black_able_to_queen_castle = False
             self.black_able_to_king_castle = False
 
-        self.move_piece(ROOK_POSITION, NEW_ROOK_POSITION, rook_castling=True)
+        self.move_piece(rook_position, new_rook_position, rook_castling=True)
 
     def __capture_en_passant(self, moving_piece: int):
         white_piece = is_white_piece(moving_piece)

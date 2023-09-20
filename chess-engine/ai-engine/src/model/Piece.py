@@ -57,6 +57,7 @@ def piece_value_from_fen(piece_fen: str):
         "r": color | PieceType.Rook
     }[piece_fen.lower()]
 
+
 def piece_fen_from_value(piece_value: int):
     return {
         PieceColor.White | PieceType.Bishop: "B",

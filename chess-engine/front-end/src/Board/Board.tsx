@@ -207,13 +207,13 @@ const Board = () => {
       </form>
       <div id="board">
         <div id="white-captures" className="captures">
-          {board.whiteCaptures.map((piece_fen) => (
-            <img className="captured_piece" src={PIECE_ICONS[piece_fen]} alt={piece_fen} />
+          {board.whiteCaptures.map((piece_fen, i) => (
+            <img key={i} className="captured_piece" src={PIECE_ICONS[piece_fen]} alt={piece_fen} />
           ))}
         </div>
         <div id="black-captures" className="captures">
-          {board.blackCaptures.map((piece_fen) => (
-            <img className="captured_piece" src={PIECE_ICONS[piece_fen]} alt={piece_fen} />
+          {board.blackCaptures.map((piece_fen, i) => (
+            <img key={i} className="captured_piece" src={PIECE_ICONS[piece_fen]} alt={piece_fen} />
           ))}
         </div>
         {LINES.map((i) => (
