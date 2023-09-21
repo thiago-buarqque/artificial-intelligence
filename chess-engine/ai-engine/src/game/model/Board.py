@@ -2,16 +2,16 @@ from typing import Union
 
 import numpy as np
 
-from model.BoardPiece import BoardPiece
-from model.MoveGenerator import MoveGenerator
-from model.Piece import (
+from game.model.BoardPiece import BoardPiece
+from game.model import MoveGenerator
+from game.model.Piece import (
     PieceColor,
     PieceType,
     PIECE_SYMBOLS,
     piece_fen_from_value,
     get_piece_type, pieces_to_fen, piece_value_from_fen, is_piece_of_type)
-from model.dto.BoardPieceDTO import BoardPieceDTO
-from model.utils import is_white_piece, INITIAL_FEN
+from game.model.dto.BoardPieceDTO import BoardPieceDTO
+from game.model.utils import is_white_piece, INITIAL_FEN
 
 
 class Board:
@@ -34,7 +34,7 @@ class Board:
         self.is_white_in_check: bool = False
         self.is_black_in_check: bool = False
 
-        self.move_generator = MoveGenerator(self)
+        self.move_generator = MoveGenerator.MoveGenerator(self)
 
         self.winner: Union[None, PieceColor.Black, PieceColor.White] = None
 
@@ -64,7 +64,7 @@ class Board:
         self.half_moves = 0
         self.full_moves = 0
 
-        self.move_generator = MoveGenerator(self)
+        self.move_generator = MoveGenerator.MoveGenerator(self)
 
         self.is_white_in_check = False
         self.is_black_in_check = False
@@ -122,7 +122,7 @@ class Board:
         return [BoardPieceDTO.from_board_piece(piece) for piece in pieces]
 
     # This is slow, refactor this
-    # Only check for sliding pieces
+    # Only check for sliding and close pieces
     def __remove_blocked_piece_moves(
             self, pieces: list[Union[BoardPiece, None]],
             black_king_position: int, white_king_position: int):

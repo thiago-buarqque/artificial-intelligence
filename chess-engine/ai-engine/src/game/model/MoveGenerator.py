@@ -1,8 +1,8 @@
 import enum
 
-import model.Board as Board
-from model.Piece import PieceType
-from model.utils import is_white_piece, is_same_color
+from game.model import Board
+from game.model.Piece import PieceType
+from game.model.utils import is_white_piece, is_same_color
 
 
 class SquareOffset(enum.Enum):
@@ -17,7 +17,7 @@ class SquareOffset(enum.Enum):
 
 
 class MoveGenerator:
-    def __init__(self, board: 'Board'):
+    def __init__(self, board: 'Board.Board'):
         self.board = board
 
     def __validate_knight_position(self, lines_apart: int, new_position: int,

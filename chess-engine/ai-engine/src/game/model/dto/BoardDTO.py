@@ -1,5 +1,5 @@
-from model.Board import Board
-from model.dto.DTO import DTO
+from game.model.Board import Board
+from game.model.dto.DTO import DTO
 
 
 class BoardDTO(DTO):

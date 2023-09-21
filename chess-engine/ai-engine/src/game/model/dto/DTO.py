@@ -1,9 +1,4 @@
-import json
 from abc import ABC
-
-import numpy as np
-
-from model.dto.NumpyEncoder import NumpyJSONEncoder
 
 
 class DTO(ABC, dict):

@@ -1,7 +1,7 @@
 from typing import Union
 
-from model.BoardPiece import BoardPiece
-from model.dto.DTO import DTO
+from game.model.BoardPiece import BoardPiece
+from game.model.dto.DTO import DTO
 
 
 class BoardPieceDTO(DTO):
