@@ -13,9 +13,11 @@ from game.model.Piece import (
 from game.model.dto.BoardPieceDTO import BoardPieceDTO
 from game.model.utils import is_white_piece, INITIAL_FEN
 
+from ai_engine.ai_engine import Piece
+
 
 class Board:
-    def __init__(self):
+    def  __init__(self):
         # Starting from top left
         self.squares: list[int] = list(np.repeat(0, 64))
         self.white_captures: list[int] = []
@@ -119,7 +121,10 @@ class Board:
             pieces, black_king_position, white_king_position)
 
         # send just the not None pieces to conserve network
-        return [BoardPieceDTO.from_board_piece(piece) for piece in pieces]
+        return pieces
+        # return [Piece("" if piece.fen is None else piece.fen,
+        #               piece.moves, piece.position, bool(piece.white))
+        #         for piece in pieces]
 
     # This is slow, refactor this
     # Only check for sliding and close pieces

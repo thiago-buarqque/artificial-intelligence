@@ -193,7 +193,7 @@ const Board = () => {
     // console.log(board);
 
     if (board.winner) {
-      console.log(`${board.winner} wins!`);
+      alert(board.winner === 'w' ? `Humano venceu!` : `IA venceu!`)
     }
   }, [board]);
 
