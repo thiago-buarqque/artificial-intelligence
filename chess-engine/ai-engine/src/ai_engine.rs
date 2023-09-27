@@ -1,14 +1,17 @@
-mod player;
-mod piece;
+mod ai;
+mod common;
+mod game;
+mod board_wrapper;
 
+use ai::random_player::RandomPlayer;
+use board_wrapper::BoardWrapper;
 use pyo3::{prelude::*, types::PyList, exceptions::PyValueError};
 
-use player::random_player::RandomPlayer;
-use piece::piece::Piece;
+use common::{piece::Piece};
 
 pub fn process_pieces(py_list: &PyAny) -> PyResult<Vec<Piece>> {
-    // Try to convert PyAny to PyList    
-    
+    // Try to convert PyAny to PyList
+
     if let Ok(py_list) = py_list.downcast::<PyList>() {
         let mut pieces: Vec<Piece> = vec![];
 
@@ -25,8 +28,8 @@ pub fn process_pieces(py_list: &PyAny) -> PyResult<Vec<Piece>> {
 }
 
 #[pyfunction]
-fn get_ai_move(py_pieces: &PyAny, white_player: bool) -> (i32, i32) {
-    let random_player = RandomPlayer {};
+fn get_ai_move(py_pieces: &PyAny, white_player: bool) -> (i8, i8) {
+    let random_player = RandomPlayer {};  
 
     if let Ok(pieces) = process_pieces(py_pieces) {
         random_player.make_move(pieces, white_player)
@@ -38,7 +41,9 @@ fn get_ai_move(py_pieces: &PyAny, white_player: bool) -> (i32, i32) {
 #[pymodule]
 fn ai_engine(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_class::<Piece>()?;
+    m.add_class::<BoardWrapper>()?;
 
     m.add_function(wrap_pyfunction!(get_ai_move, m)?)?;
+    
     Ok(())
 }
