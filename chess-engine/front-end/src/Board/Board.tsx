@@ -11,7 +11,7 @@ import moveAudio from "../assets/sound/move-self.mp3";
 import http from "../http-common";
 
 import "./board.scss";
-import { INITIAL_FEN } from "./constants";
+import { EMPTY_FEN, INITIAL_FEN } from "./constants";
 
 const LINES = [0, 1, 2, 3, 4, 5, 6, 7];
 const COLUMNS: { [key: number]: string } = {
@@ -60,7 +60,7 @@ const Board = () => {
     whiteCaptures: [],
     pieces: [],
     whiteMove: true,
-    winner: null,
+    winner: "-",
   });
 
   const onPieceSelect = (piece: TBoardPiece) => {
@@ -82,7 +82,7 @@ const Board = () => {
 
   const togglePieceAvailableMoves = (piece: TBoardPiece) => {
     piece.moves.forEach((move) => {
-      const className = board.pieces[move].fen ? "capture-receptor" : "empty-receptor";
+      const className = board.pieces[move].fen !== EMPTY_FEN ? "capture-receptor" : "empty-receptor";
 
       const cell = document.querySelector(`.cell[data-pos='${move}']`) as HTMLDivElement;
 
@@ -192,7 +192,7 @@ const Board = () => {
   useEffect(() => {
     // console.log(board);
 
-    if (board.winner) {
+    if (board.winner !== "-") {
       alert(board.winner === 'w' ? `Humano venceu!` : `IA venceu!`)
     }
   }, [board]);
@@ -234,7 +234,7 @@ const Board = () => {
                     {COLUMNS[j]}
                   </span>
                 )}
-                {board.pieces[i * 8 + j] && board.pieces[i * 8 + j].fen !== null ? (
+                {board.pieces[i * 8 + j] && board.pieces[i * 8 + j].fen !== EMPTY_FEN ? (
                   <BoardPiece boardPiece={board.pieces[i * 8 + j]} onClick={onPieceSelect} />
                 ) : (
                   <div className="move-dot"></div>

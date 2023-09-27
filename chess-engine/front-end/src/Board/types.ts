@@ -3,7 +3,7 @@ export type TBoard = {
   pieces: TBoardPiece[];
   whiteCaptures: string[];
   whiteMove: boolean;
-  winner: null | "b" | "w"
+  winner: "-" | "b" | "w"
 };
 
 export type TBoardPiece = {
