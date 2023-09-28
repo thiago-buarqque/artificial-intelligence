@@ -1,4 +1,10 @@
-use crate::common::{piece_utils::{PieceColor, PieceType, pieces_to_fen, is_white_piece, get_piece_type, piece_fen_from_value, is_piece_of_type, piece_value_from_fen}, piece::Piece};
+use crate::common::{
+    piece::Piece,
+    piece_utils::{
+        get_piece_type, is_piece_of_type, is_white_piece, piece_fen_from_value,
+        piece_value_from_fen, pieces_to_fen, PieceColor, PieceType,
+    },
+};
 
 use super::move_generator::MoveGenerator;
 
@@ -73,7 +79,7 @@ impl Board {
         self.white_able_to_queen_side_castle = true;
         self.white_able_to_king_side_castle = true;
     }
-    
+
     pub fn get_black_en_passant(&self) -> i8 {
         self.black_en_passant
     }
@@ -112,13 +118,13 @@ impl Board {
 
     fn generate_moves(&self, piece_type: PieceType, position: i8) -> Vec<i8> {
         // King moves are generate after generating other pieces' moves
-        
+
         match piece_type {
-            PieceType::Bishop => self.move_generator.generate_bishop_moves(self,position),
-            PieceType::Knight => self.move_generator.generate_knight_moves(self,position),
-            PieceType::Pawn => self.move_generator.generate_pawn_moves(self,position),
-            PieceType::Queen => self.move_generator.generate_queen_moves(self,position),
-            PieceType::Rook => self.move_generator.generate_rook_moves(self,position),
+            PieceType::Bishop => self.move_generator.generate_bishop_moves(self, position),
+            PieceType::Knight => self.move_generator.generate_knight_moves(self, position),
+            PieceType::Pawn => self.move_generator.generate_pawn_moves(self, position),
+            PieceType::Queen => self.move_generator.generate_queen_moves(self, position),
+            PieceType::Rook => self.move_generator.generate_rook_moves(self, position),
             _ => vec![],
         }
     }
@@ -167,9 +173,11 @@ impl Board {
         }
 
         self.get_king_available_moves(
-            black_king_position, &black_moves,
-            &mut pieces, white_king_position,
-            &white_moves
+            black_king_position,
+            &black_moves,
+            &mut pieces,
+            white_king_position,
+            &white_moves,
         );
 
         self.remove_blocked_piece_moves(&mut pieces, black_king_position, white_king_position);
@@ -177,8 +185,12 @@ impl Board {
         pieces
     }
 
-    pub fn remove_blocked_piece_moves(&mut self, pieces: &mut [Option<Piece>], 
-                                      black_king_position: i8, white_king_position: i8) {
+    pub fn remove_blocked_piece_moves(
+        &mut self,
+        pieces: &mut [Option<Piece>],
+        black_king_position: i8,
+        white_king_position: i8,
+    ) {
         let king_position = if self.is_white_move {
             white_king_position
         } else {
@@ -197,15 +209,16 @@ impl Board {
                 let target_square_piece_value = self.squares[move_pos as usize];
 
                 // Perform temporary move
-                self.squares[piece_position as usize] = 0;  // Assume 0 is empty
+                self.squares[piece_position as usize] = 0; // Assume 0 is empty
                 self.squares[move_pos as usize] = piece_value;
 
-                let opponent_next_moves = 
+                let opponent_next_moves =
                     self.get_player_moves_from_current_board(!self.is_white_move);
 
-                if get_piece_type(piece_value) == PieceType::King && 
-                    opponent_next_moves.contains(&move_pos) ||
-                    opponent_next_moves.contains(&king_position) {
+                if get_piece_type(piece_value) == PieceType::King
+                    && opponent_next_moves.contains(&move_pos)
+                    || opponent_next_moves.contains(&king_position)
+                {
                     invalid_moves.push(move_pos);
                 }
 
@@ -222,7 +235,11 @@ impl Board {
         }
 
         if player_moves.is_empty() {
-            self.winner = if self.is_white_move { PieceColor::Black as i8} else { PieceColor::White as i8};  // Assume BLACK and WHITE are defined
+            self.winner = if self.is_white_move {
+                PieceColor::Black as i8
+            } else {
+                PieceColor::White as i8
+            }; // Assume BLACK and WHITE are defined
         }
     }
 
@@ -253,8 +270,12 @@ impl Board {
         white_king_position: i8,
         white_moves: &[i8],
     ) {
-        let mut white_king_moves = self.move_generator.generate_king_moves(self,black_moves, white_king_position);
-        let mut black_king_moves = self.move_generator.generate_king_moves(self,white_moves, black_king_position);
+        let mut white_king_moves =
+            self.move_generator
+                .generate_king_moves(self, black_moves, white_king_position);
+        let mut black_king_moves =
+            self.move_generator
+                .generate_king_moves(self, white_moves, black_king_position);
 
         let common_moves: Vec<i8> = white_king_moves
             .iter()
@@ -290,7 +311,6 @@ impl Board {
                 let current_piece = self.squares[index as usize];
 
                 if !is_piece_of_type(current_piece, PieceType::Empty) {
-                    
                     let is_white = is_white_piece(current_piece);
                     if is_white {
                         self.black_captures.push(current_piece);
@@ -304,27 +324,29 @@ impl Board {
                         } else {
                             self.winner = PieceColor::White as i8;
                         }
-                        
-                        // TODO: Add events on finish?
                     }
                 }
 
                 self.squares[index as usize] = piece;
-            },
-            Err(error) => println!("{}", error)
+            }
+            Err(error) => println!("{}", error),
         }
-    
     }
 
     pub fn get_winner_fen(&self) -> String {
         match self.winner {
             x if x == (PieceColor::White as i8) => String::from("w"),
             x if x == (PieceColor::Black as i8) => String::from("b"),
-            _ => String::from("-")
+            _ => String::from("-"),
         }
     }
-    
-    pub fn move_piece(&mut self, from_index: i8, to_index: i8, rook_castling: bool) -> Result<(), &'static str> {
+
+    pub fn move_piece(
+        &mut self,
+        from_index: i8,
+        to_index: i8,
+        rook_castling: bool,
+    ) -> Result<(), &'static str> {
         match self.validate_board_index(from_index) {
             Ok(()) => {
                 let moving_piece = self.squares[from_index as usize];
@@ -335,8 +357,9 @@ impl Board {
 
                 if self.is_en_passant_capture(moving_piece, to_index) {
                     self.capture_en_passant(moving_piece);
-                } else if moving_piece == (PieceColor::White as i8 | PieceType::King as i8) ||
-                        moving_piece == (PieceColor::Black as i8 | PieceType::King as i8) {
+                } else if moving_piece == (PieceColor::White as i8 | PieceType::King as i8)
+                    || moving_piece == (PieceColor::Black as i8 | PieceType::King as i8)
+                {
                     self.handle_king_move(from_index, moving_piece, to_index);
                 }
 
@@ -354,10 +377,8 @@ impl Board {
                 }
 
                 Ok(())
-            },
-            Err(message) => {
-                Err(message)
             }
+            Err(message) => Err(message),
         }
     }
 
@@ -365,7 +386,9 @@ impl Board {
         let white_piece = is_white_piece(moving_piece);
 
         let is_castle_move = (from_index - to_index).abs() == 2;
-        if is_castle_move && ((white_piece && !self.white_king_moved) || (!white_piece && !self.black_king_moved)) {
+        if is_castle_move
+            && ((white_piece && !self.white_king_moved) || (!white_piece && !self.black_king_moved))
+        {
             // The error will never occur, indexes are 0..=63
             let _ = self.castle(from_index, to_index, white_piece);
         }
@@ -377,12 +400,14 @@ impl Board {
         }
     }
 
-    fn castle(&mut self, from_index: i8, to_index: i8, white_piece: bool) -> Result<(), &'static str> {
-        let (queen_side_rook_position, king_side_rook_position) = if white_piece {
-            (56, 63)
-        } else {
-            (0, 7)
-        };
+    fn castle(
+        &mut self,
+        from_index: i8,
+        to_index: i8,
+        white_piece: bool,
+    ) -> Result<(), &'static str> {
+        let (queen_side_rook_position, king_side_rook_position) =
+            if white_piece { (56, 63) } else { (0, 7) };
 
         let rook_position = if from_index > to_index {
             queen_side_rook_position
@@ -411,11 +436,13 @@ impl Board {
         let white_piece = is_white_piece(moving_piece);
 
         if white_piece {
-            self.white_captures.push(self.squares[(self.black_en_passant + 8) as usize]);
+            self.white_captures
+                .push(self.squares[(self.black_en_passant + 8) as usize]);
             self.squares[(self.black_en_passant + 8) as usize] = PieceType::Empty as i8;
             self.black_en_passant = -1;
         } else {
-            self.black_captures.push(self.squares[(self.white_en_passant - 8) as usize]);
+            self.black_captures
+                .push(self.squares[(self.white_en_passant - 8) as usize]);
             self.squares[(self.white_en_passant - 8) as usize] = PieceType::Empty as i8;
             self.white_en_passant = -1;
         }
@@ -461,12 +488,9 @@ impl Board {
 
     pub fn get_piece(&self, index: i8) -> i8 {
         match self.validate_board_index(index) {
-            Ok(()) => {
-                self.squares[index as usize]
-            },
-            _ => -1
+            Ok(()) => self.squares[index as usize],
+            _ => -1,
         }
-
     }
 
     pub fn is_valid_position(&self, index: i8) -> bool {
@@ -551,9 +575,8 @@ impl Board {
         match active_color {
             "w" => self.is_white_move = true,
             "b" => self.is_white_move = false,
-            _ => self.is_white_move = true
+            _ => self.is_white_move = true,
         }
-
     }
 
     fn generate_pieces_from_fen(&mut self, board_rows: &str) {
@@ -578,5 +601,4 @@ impl Board {
             Err("Invalid board index")
         }
     }
-
 }

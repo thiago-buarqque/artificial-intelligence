@@ -1,10 +1,13 @@
-use pyo3::{prelude::*, exceptions};
+use pyo3::{exceptions, prelude::*};
 
-use crate::{game::board::Board, common::{piece::Piece, contants::INITIAL_FEN}};
+use crate::{
+    common::{contants::INITIAL_FEN, piece::Piece},
+    game::board::Board,
+};
 
 #[pyclass]
 pub struct BoardWrapper {
-    board: Board
+    board: Board,
 }
 
 // is this a facade?
@@ -16,9 +19,7 @@ impl BoardWrapper {
 
         board.load_position(INITIAL_FEN);
 
-        BoardWrapper {
-            board
-        }
+        BoardWrapper { board }
     }
 
     pub fn black_captures_to_fen(&self) -> Vec<String> {
@@ -29,7 +30,7 @@ impl BoardWrapper {
         self.board.white_captures_to_fen()
     }
 
-    pub fn get_available_moves(&mut self) -> Vec<Option<Piece>>{
+    pub fn get_available_moves(&mut self) -> Vec<Option<Piece>> {
         self.board.get_available_moves()
     }
 
@@ -53,11 +54,10 @@ impl BoardWrapper {
         self.board.load_position(fen)
     }
 
-    pub fn move_piece(&mut self, from_index: i8, to_index: i8) -> PyResult<()>{
+    pub fn move_piece(&mut self, from_index: i8, to_index: i8) -> PyResult<()> {
         match self.board.move_piece(from_index, to_index, false) {
             Ok(()) => Ok(()),
-            Err(error) => Err(exceptions::PyValueError::new_err(error))
-
+            Err(error) => Err(exceptions::PyValueError::new_err(error)),
         }
     }
 }

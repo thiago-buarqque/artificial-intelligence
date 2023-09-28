@@ -21,9 +21,7 @@ impl SquareOffset {
 }
 
 #[derive(Debug, Clone)]
-pub struct MoveGenerator {
-
-}
+pub struct MoveGenerator {}
 
 impl MoveGenerator {
     fn validate_knight_position(&self, lines_apart: i8, new_position: i8, position: i8) -> i8 {
@@ -69,7 +67,8 @@ impl MoveGenerator {
             if board.is_valid_position(current_position) {
                 let current_piece = board.get_piece(current_position);
 
-                if current_piece == PieceType::Empty as i8 || !is_same_color(knight_piece, current_piece)
+                if current_piece == PieceType::Empty as i8
+                    || !is_same_color(knight_piece, current_piece)
                 {
                     moves.push(current_position);
                 }
@@ -79,7 +78,12 @@ impl MoveGenerator {
         moves
     }
 
-    pub fn generate_king_moves(&self, board: &Board, opponent_moves: &[i8], king_position: i8) -> Vec<i8> {
+    pub fn generate_king_moves(
+        &self,
+        board: &Board,
+        opponent_moves: &[i8],
+        king_position: i8,
+    ) -> Vec<i8> {
         let positions = vec![
             king_position - 1,
             king_position + 1,
@@ -150,16 +154,17 @@ impl MoveGenerator {
     ) {
         let is_white_king = is_white_piece(king_piece);
 
-        if (is_white_king && !board.white_king_moved()) || (!is_white_king && !board.black_king_moved())
+        if (is_white_king && !board.white_king_moved())
+            || (!is_white_king && !board.black_king_moved())
         {
             let (queen_side_rook_position, king_side_rook_position) =
                 if is_white_king { (56, 63) } else { (0, 7) };
 
-            let able_to_castle_queen_side = self.is_able_to_castle_queen_side(board,is_white_king);
-            let able_to_castle_king_side = self.is_able_to_castle_king_side(board,is_white_king);
+            let able_to_castle_queen_side = self.is_able_to_castle_queen_side(board, is_white_king);
+            let able_to_castle_king_side = self.is_able_to_castle_king_side(board, is_white_king);
 
             if able_to_castle_queen_side
-                && self.is_path_clear(board,position - 1, queen_side_rook_position, -1)
+                && self.is_path_clear(board, position - 1, queen_side_rook_position, -1)
             {
                 let new_position = position - 2;
 
@@ -171,7 +176,7 @@ impl MoveGenerator {
             }
 
             if able_to_castle_king_side
-                && self.is_path_clear(board,position + 1, king_side_rook_position, 1)
+                && self.is_path_clear(board, position + 1, king_side_rook_position, 1)
             {
                 let new_position = position + 2;
 
@@ -187,8 +192,8 @@ impl MoveGenerator {
     pub fn generate_queen_moves(&self, board: &Board, position: i8) -> Vec<i8> {
         let mut moves = vec![];
 
-        moves.extend(self.generate_bishop_moves(board,position));
-        moves.extend(self.generate_rook_moves(board,position));
+        moves.extend(self.generate_bishop_moves(board, position));
+        moves.extend(self.generate_rook_moves(board, position));
 
         moves
     }
@@ -197,10 +202,16 @@ impl MoveGenerator {
         let piece = board.get_piece(position);
         let mut moves = vec![];
 
-        self.generate_sliding_moves(board,&mut moves, piece, position, SquareOffset::TopLeft);
-        self.generate_sliding_moves(board,&mut moves, piece, position, SquareOffset::TopRight);
-        self.generate_sliding_moves(board,&mut moves, piece, position, SquareOffset::BottomLeft);
-        self.generate_sliding_moves(board,&mut moves, piece, position, SquareOffset::BottomRight);
+        self.generate_sliding_moves(board, &mut moves, piece, position, SquareOffset::TopLeft);
+        self.generate_sliding_moves(board, &mut moves, piece, position, SquareOffset::TopRight);
+        self.generate_sliding_moves(board, &mut moves, piece, position, SquareOffset::BottomLeft);
+        self.generate_sliding_moves(
+            board,
+            &mut moves,
+            piece,
+            position,
+            SquareOffset::BottomRight,
+        );
 
         moves
     }
@@ -209,10 +220,10 @@ impl MoveGenerator {
         let piece = board.get_piece(position);
         let mut moves = vec![];
 
-        self.generate_sliding_moves(board,&mut moves, piece, position, SquareOffset::LineAbove);
-        self.generate_sliding_moves(board,&mut moves, piece, position, SquareOffset::Left);
-        self.generate_sliding_moves(board,&mut moves, piece, position, SquareOffset::Right);
-        self.generate_sliding_moves(board,&mut moves, piece, position, SquareOffset::LineBelow);
+        self.generate_sliding_moves(board, &mut moves, piece, position, SquareOffset::LineAbove);
+        self.generate_sliding_moves(board, &mut moves, piece, position, SquareOffset::Left);
+        self.generate_sliding_moves(board, &mut moves, piece, position, SquareOffset::Right);
+        self.generate_sliding_moves(board, &mut moves, piece, position, SquareOffset::LineBelow);
 
         moves
     }
@@ -252,7 +263,7 @@ impl MoveGenerator {
 
             let current_piece = board.get_piece(current_position);
 
-            if current_piece == PieceType::Empty as i8{
+            if current_piece == PieceType::Empty as i8 {
                 moves.push(current_position);
             } else if !is_same_color(piece, current_piece) {
                 moves.push(current_position);
@@ -294,8 +305,14 @@ impl MoveGenerator {
             position,
             white_piece,
         );
-        self.generate_pawn_capturing_moves(board,&mut moves, next_line_position, position, white_piece);
-        self.generate_en_passant_moves(board,&mut moves, offset, position, white_piece);
+        self.generate_pawn_capturing_moves(
+            board,
+            &mut moves,
+            next_line_position,
+            position,
+            white_piece,
+        );
+        self.generate_en_passant_moves(board, &mut moves, offset, position, white_piece);
 
         moves
     }
@@ -331,8 +348,8 @@ impl MoveGenerator {
     fn is_pawn_first_move(&self, white_piece: bool, piece_position: i8) -> bool {
         if white_piece && (48..=55).contains(&piece_position) {
             return true;
-        } 
-        
+        }
+
         if !white_piece && (8..=15).contains(&piece_position) {
             return true;
         }

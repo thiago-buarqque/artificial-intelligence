@@ -35,7 +35,10 @@ pub enum PieceColor {
 // .collect();
 
 pub fn pieces_to_fen(pieces: &[i8]) -> Vec<String> {
-    pieces.iter().map(|&piece| piece_fen_from_value(piece)).collect()
+    pieces
+        .iter()
+        .map(|&piece| piece_fen_from_value(piece))
+        .collect()
 }
 
 pub fn is_piece_of_type(piece: i8, piece_type: PieceType) -> bool {

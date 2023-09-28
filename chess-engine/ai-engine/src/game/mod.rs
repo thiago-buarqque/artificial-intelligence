@@ -1,2 +1,2 @@
-mod move_generator;
 pub mod board;
+mod move_generator;
