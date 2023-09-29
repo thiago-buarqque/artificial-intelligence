@@ -1,13 +1,14 @@
 use pyo3::{exceptions, prelude::*};
 
 use crate::{
-    common::{contants::INITIAL_FEN, piece::Piece},
-    game::board::Board,
+    common::{contants::INITIAL_FEN, piece::Piece, piece_utils::{PieceType, is_white_piece, get_piece_type}},
+    game::board::Board, ai::minimax::MiniMax,
 };
 
 #[pyclass]
 pub struct BoardWrapper {
     board: Board,
+    mini_max: MiniMax,
 }
 
 // is this a facade?
@@ -19,7 +20,19 @@ impl BoardWrapper {
 
         board.load_position(INITIAL_FEN);
 
-        BoardWrapper { board }
+        BoardWrapper { board, mini_max: MiniMax::new() }
+    }
+
+    pub fn get_ai_move(&mut self) -> (i32, (i8, i8)) {
+        let result = self.mini_max.make_move(&self.board);
+
+        println!("Evaluated {} states", self.mini_max.states_checked);
+
+        result
+    }
+
+    pub fn get_move_generation_count(&mut self, depth: usize) -> u64 {
+        move_generation_count(self.board.clone(), depth)
     }
 
     pub fn black_captures_to_fen(&self) -> Vec<String> {
@@ -31,7 +44,24 @@ impl BoardWrapper {
     }
 
     pub fn get_available_moves(&mut self) -> Vec<Option<Piece>> {
-        self.board.get_available_moves()
+        let mut pieces: Vec<Option<Piece>> = Vec::new();
+
+        for piece in self.board.get_available_moves().iter() {
+            if let Some(piece) = piece {
+                pieces.push(
+                    Some(Piece::new(
+                        piece.get_fen().clone(), 
+                        piece.get_immutable_moves(), 
+                        piece.get_position(), 
+                        piece.is_white()
+                    ))
+                );
+            } else {
+                pieces.push(None);
+            }
+        }
+        // println!("Pieces at the very end: {:?}", pieces);
+        pieces
     }
 
     pub fn get_winner_fen(&self) -> String {
@@ -55,9 +85,36 @@ impl BoardWrapper {
     }
 
     pub fn move_piece(&mut self, from_index: i8, to_index: i8) -> PyResult<()> {
-        match self.board.move_piece(from_index, to_index, false) {
+        match self.board.move_piece(from_index, to_index) {
             Ok(()) => Ok(()),
             Err(error) => Err(exceptions::PyValueError::new_err(error)),
         }
     }
+}
+
+fn move_generation_count(mut board: Board, depth: usize) -> u64 {
+    if depth == 0 {
+        return 1;
+    }
+    
+    let pieces = board.get_available_moves();
+    let mut num_positions: u64 = 0;
+
+    // get_available_moves should only return the pieces, not empties
+    for piece in pieces.iter().flatten() {           
+        for piece_move in piece.get_immutable_moves().iter() {
+            if (piece.get_value() == PieceType::Empty as i8) ||
+            (is_white_piece(piece.get_value()) != board.is_white_move()){
+                continue;
+            }
+
+            let mut temp_board = board.clone();
+
+            temp_board.move_piece(piece.get_position(), *piece_move);
+
+            num_positions += move_generation_count(temp_board, depth -1);
+        }
+    }
+
+    num_positions
 }

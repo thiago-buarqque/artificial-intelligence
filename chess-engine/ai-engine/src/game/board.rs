@@ -1,7 +1,7 @@
 use crate::common::{
-    piece::Piece,
+    board_piece::BoardPiece,
     piece_utils::{
-        get_piece_type, is_piece_of_type, is_white_piece, piece_fen_from_value,
+        get_piece_type, is_piece_of_type, is_same_color, is_white_piece, piece_fen_from_value,
         piece_value_from_fen, pieces_to_fen, PieceColor, PieceType,
     },
 };
@@ -54,6 +54,29 @@ impl Board {
         }
     }
 
+    pub fn clone(&self) -> Self {
+        Self {
+            squares: self.squares.clone(),
+            white_captures: self.white_captures.clone(),
+            black_captures: self.black_captures.clone(),
+            black_en_passant: self.black_en_passant,
+            white_en_passant: self.white_en_passant,
+            black_king_moved: self.black_king_moved,
+            white_king_moved: self.white_king_moved,
+            is_white_move: self.is_white_move,
+            half_moves: self.half_moves,
+            full_moves: self.full_moves,
+            is_white_in_check: self.is_white_in_check,
+            is_black_in_check: self.is_black_in_check,
+            move_generator: MoveGenerator {},
+            winner: self.winner,
+            black_able_to_queen_side_castle: self.black_able_to_queen_side_castle,
+            black_able_to_king_side_castle: self.black_able_to_king_side_castle,
+            white_able_to_queen_side_castle: self.white_able_to_queen_side_castle,
+            white_able_to_king_side_castle: self.white_able_to_king_side_castle,
+        }
+    }
+
     fn reset(&mut self) {
         self.squares = [0; 64];
         self.white_captures.clear();
@@ -78,6 +101,14 @@ impl Board {
         self.black_able_to_king_side_castle = true;
         self.white_able_to_queen_side_castle = true;
         self.white_able_to_king_side_castle = true;
+    }
+
+    pub fn get_squares(&self) -> &[i8; 64] {
+        &self.squares
+    }
+
+    pub fn is_game_finished(&self) -> bool {
+        self.get_winner_fen() != "-"
     }
 
     pub fn get_black_en_passant(&self) -> i8 {
@@ -137,17 +168,17 @@ impl Board {
         pieces_to_fen(&self.black_captures)
     }
 
-    pub fn get_available_moves(&mut self) -> Vec<Option<Piece>> {
+    pub fn get_available_moves(&mut self) -> Vec<Option<BoardPiece>> {
         let mut black_moves: Vec<i8> = Vec::new();
         let mut white_moves: Vec<i8> = Vec::new();
-        let mut pieces: Vec<Option<Piece>> = Vec::new();
+        let mut pieces: Vec<Option<BoardPiece>> = Vec::new();
 
         let mut white_king_position: i8 = -1;
         let mut black_king_position: i8 = -1;
 
-        for (position, &piece) in self.squares.iter().enumerate() {
-            let white_piece = is_white_piece(piece);
-            let piece_type = get_piece_type(piece);
+        for (position, &piece_value) in self.squares.iter().enumerate() {
+            let white_piece = is_white_piece(piece_value);
+            let piece_type = get_piece_type(piece_value);
 
             if piece_type == PieceType::King {
                 if white_piece {
@@ -159,8 +190,14 @@ impl Board {
             } else {
                 let moves = self.generate_moves(piece_type, position as i8);
 
-                let piece_fen = piece_fen_from_value(piece);
-                let piece = Piece::new(piece_fen, moves.clone(), position as i8, white_piece);
+                let piece_fen = piece_fen_from_value(piece_value);
+                let piece = BoardPiece::new(
+                    piece_fen,
+                    moves.clone(),
+                    position as i8,
+                    piece_value,
+                    white_piece,
+                );
 
                 pieces.push(Some(piece));
 
@@ -187,7 +224,7 @@ impl Board {
 
     pub fn remove_blocked_piece_moves(
         &mut self,
-        pieces: &mut [Option<Piece>],
+        pieces: &mut [Option<BoardPiece>],
         black_king_position: i8,
         white_king_position: i8,
     ) {
@@ -201,40 +238,91 @@ impl Board {
 
         // Is it possible to brake the loop earlier if king is in check on the next move?
         for board_piece in pieces.iter_mut().flatten() {
-            let piece_position = board_piece.position;
+            let piece_position = board_piece.get_position();
             let piece_value = self.squares[piece_position as usize];
             let mut invalid_moves = Vec::new();
 
-            for &move_pos in board_piece.moves.iter() {
-                let target_square_piece_value = self.squares[move_pos as usize];
+            if board_piece.is_white() != self.is_white_move {
+                continue;
+            }
 
-                // Perform temporary move
-                self.squares[piece_position as usize] = 0; // Assume 0 is empty
-                self.squares[move_pos as usize] = piece_value;
+            if get_piece_type(piece_value) == PieceType::King {
+                println!(
+                    "King moves: {:?} - pos: {}",
+                    board_piece.get_immutable_moves(),
+                    piece_position
+                );
+            }
 
-                let opponent_next_moves =
-                    self.get_player_moves_from_current_board(!self.is_white_move);
+            for move_pos in board_piece.get_immutable_moves() {
+                let mut temp_board = self.clone();
+
+                temp_board.move_piece(piece_position, move_pos);
+
+                let opponent_next_moves = temp_board.get_player_moves_from_current_board();
+
+                if get_piece_type(piece_value) == PieceType::King {
+                    println!("For king in {}: move: {} - opponents: {:?}", 
+                        piece_position, move_pos, opponent_next_moves);
+                }
 
                 if get_piece_type(piece_value) == PieceType::King
                     && opponent_next_moves.contains(&move_pos)
-                    || opponent_next_moves.contains(&king_position)
                 {
+                    println!(
+                        "(1) Invalidating move of {} ({}): {} - opponents: {:?}",
+                        piece_fen_from_value(piece_value), piece_position,
+                        move_pos,
+                        opponent_next_moves
+                    );
                     invalid_moves.push(move_pos);
+                    continue;
                 }
 
-                // Undo temporary move
-                self.squares[piece_position as usize] = piece_value;
-                self.squares[move_pos as usize] = target_square_piece_value;
+                if get_piece_type(piece_value) == PieceType::King {
+                    continue;
+                }
+
+                if (board_piece.is_white() && opponent_next_moves.contains(&white_king_position)) ||
+                    (!board_piece.is_white() && opponent_next_moves.contains(&black_king_position)){
+                    println!(
+                        "(2) Invalidating move of {} ({}): {} - opponents: {:?}",
+                        piece_fen_from_value(piece_value), piece_position,
+                        move_pos,
+                        opponent_next_moves
+                    );
+
+                    invalid_moves.push(move_pos);
+                }
             }
 
-            board_piece.moves.retain(|&x| !invalid_moves.contains(&x));
+            if piece_value != 0 {
+                println!(
+                    "Original moves of {}: {:?} - invalids: {:?}",
+                    piece_fen_from_value(piece_value),
+                    board_piece.get_immutable_moves(),
+                    invalid_moves
+                );                
+            }
+
+
+            board_piece
+                .get_moves()
+                .retain(|&x| !invalid_moves.contains(&x));
 
             if is_white_piece(piece_value) == self.is_white_move {
-                player_moves.extend(&board_piece.moves);
+                player_moves.extend(board_piece.get_immutable_moves());
+            } else {
+                println!(
+                    "Not counting moves for {}, its moves were: {:?}",
+                    piece_fen_from_value(piece_value),
+                    board_piece.get_immutable_moves()
+                )
             }
         }
 
         if player_moves.is_empty() {
+            println!("Player moves is empty, ending game");
             self.winner = if self.is_white_move {
                 PieceColor::Black as i8
             } else {
@@ -243,11 +331,11 @@ impl Board {
         }
     }
 
-    fn get_player_moves_from_current_board(&self, is_white_player: bool) -> Vec<i8> {
+    fn get_player_moves_from_current_board(&self) -> Vec<i8> {
         let mut all_moves: Vec<i8> = Vec::new();
 
         for (position, &piece) in self.squares.iter().enumerate() {
-            if is_white_piece(piece) != is_white_player {
+            if is_white_piece(piece) != self.is_white_move {
                 continue;
             }
 
@@ -255,6 +343,13 @@ impl Board {
 
             if piece_type != PieceType::King {
                 let moves = self.generate_moves(piece_type, position as i8);
+                all_moves.extend(moves);
+            } else {
+                let opponent_moves: Vec<i8> = Vec::new();
+                // generates the current player king possible moves, even if they're invalid.
+                // This is just to prevent kings to be aside with each other
+                let moves = self.move_generator.generate_king_moves(self, &opponent_moves, position as i8);
+                
                 all_moves.extend(moves);
             }
         }
@@ -266,7 +361,7 @@ impl Board {
         &self,
         black_king_position: i8,
         black_moves: &[i8],
-        board_pieces: &mut [Option<Piece>],
+        board_pieces: &mut [Option<BoardPiece>],
         white_king_position: i8,
         white_moves: &[i8],
     ) {
@@ -277,6 +372,9 @@ impl Board {
             self.move_generator
                 .generate_king_moves(self, white_moves, black_king_position);
 
+        println!("white king moves: {:?}", white_king_moves);
+        println!("black king moves: {:?}", black_king_moves);
+
         let common_moves: Vec<i8> = white_king_moves
             .iter()
             .cloned()
@@ -286,19 +384,21 @@ impl Board {
         white_king_moves.retain(|x| !common_moves.contains(x));
         black_king_moves.retain(|x| !common_moves.contains(x));
 
-        let white_king_piece = Piece {
-            fen: piece_fen_from_value(PieceColor::White as i8 | PieceType::King as i8),
-            moves: white_king_moves,
-            position: white_king_position,
-            white: true,
-        };
+        let white_king_piece = BoardPiece::new(
+            piece_fen_from_value(PieceColor::White as i8 | PieceType::King as i8),
+            white_king_moves,
+            white_king_position,
+            self.get_piece(white_king_position),
+            true,
+        );
 
-        let black_king_piece = Piece {
-            fen: piece_fen_from_value(PieceColor::Black as i8 | PieceType::King as i8),
-            moves: black_king_moves,
-            position: black_king_position,
-            white: false,
-        };
+        let black_king_piece = BoardPiece::new(
+            piece_fen_from_value(PieceColor::Black as i8 | PieceType::King as i8),
+            black_king_moves,
+            black_king_position,
+            self.get_piece(black_king_position),
+            false,
+        );
 
         board_pieces[white_king_position as usize] = Some(white_king_piece);
         board_pieces[black_king_position as usize] = Some(black_king_piece);
@@ -341,7 +441,11 @@ impl Board {
         }
     }
 
-    pub fn move_piece(
+    pub fn move_piece(&mut self, from_index: i8, to_index: i8) -> Result<(), &'static str> {
+        self._move_piece(from_index, to_index, false)
+    }
+
+    fn _move_piece(
         &mut self,
         from_index: i8,
         to_index: i8,
@@ -350,6 +454,7 @@ impl Board {
         match self.validate_board_index(from_index) {
             Ok(()) => {
                 let moving_piece = self.squares[from_index as usize];
+                let replaced_piece = self.get_piece(to_index);
 
                 if moving_piece == PieceType::Empty as i8 {
                     return Err("No piece at the position ");
@@ -376,9 +481,26 @@ impl Board {
                     self.is_white_move = !self.is_white_move;
                 }
 
+                // Remove ability for rook
+                if get_piece_type(moving_piece) == PieceType::Rook {
+                    self.update_castling_ability(from_index, from_index < 8, from_index % 8 == 7);
+                } else if get_piece_type(replaced_piece) == PieceType::Rook {
+                    self.update_castling_ability(to_index, to_index < 8, to_index % 8 == 7);
+                }
+
                 Ok(())
             }
             Err(message) => Err(message),
+        }
+    }
+
+    fn update_castling_ability(&mut self, index: i8, is_black: bool, is_king_side: bool) {
+        match (index, is_black, is_king_side) {
+            (0, true, false) => self.black_able_to_queen_side_castle = false,
+            (7, true, true) => self.black_able_to_king_side_castle = false,
+            (56, false, false) => self.white_able_to_queen_side_castle = false,
+            (63, false, true) => self.white_able_to_king_side_castle = false,
+            _ => {}
         }
     }
 
@@ -429,7 +551,7 @@ impl Board {
             self.black_able_to_king_side_castle = false;
         }
 
-        self.move_piece(rook_position, new_rook_position, true)
+        self._move_piece(rook_position, new_rook_position, true)
     }
 
     fn capture_en_passant(&mut self, moving_piece: i8) {
@@ -506,8 +628,16 @@ impl Board {
         self.load_active_color(fields[1]);
         self.load_castling(fields[2]);
         self.load_en_passant(fields[3]);
-        self.load_half_move_clock(fields[4]);
-        self.load_full_move_number(fields[5]);
+
+        // Every fen shoul have, but sometimes in dev I copy some that doesn't.
+        // Just preventing errors
+        if fields.len() > 4 {
+            self.load_half_move_clock(fields[4]);
+
+            if fields.len() > 5 {
+                self.load_full_move_number(fields[5]);
+            }
+        }
     }
 
     fn load_half_move_clock(&mut self, half_move: &str) {

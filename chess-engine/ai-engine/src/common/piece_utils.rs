@@ -1,5 +1,3 @@
-use std::io::stdout;
-
 #[derive(PartialEq, Eq)]
 pub enum PieceType {
     Empty = 0,
@@ -96,6 +94,19 @@ pub fn get_piece_type(piece_value: i8) -> PieceType {
         _ => PieceType::Empty,
     }
 }
+
+pub fn get_piece_worth(piece_value: i8) -> i32 {
+    match piece_value {
+        17 | 9 => 330,
+        18 | 10 => 20000,
+        19 | 11 => 320,
+        20 | 12 => 100,
+        21 | 13 => 900,
+        22 | 14 => 500,
+        _ => 0,
+    }
+}
+
 
 const WHITE_LOWER_BOUND: i8 = PieceColor::White as i8 | PieceType::Bishop as i8;
 const WHITE_UPPER_BOUND: i8 = PieceColor::White as i8 | PieceType::Rook as i8;

@@ -1,4 +1,4 @@
-use crate::common::piece_utils::{is_same_color, is_white_piece, PieceType};
+use crate::common::piece_utils::{is_same_color, is_white_piece, PieceType, get_piece_type};
 
 use super::board::Board;
 
@@ -78,6 +78,32 @@ impl MoveGenerator {
         moves
     }
 
+    fn get_valid_king_move(&self, current_position: i8, new_position: i8) -> i8 {
+        if !(0..=63).contains(&new_position) {
+            return -1;
+        }
+
+        // Is on the left side of the board
+        if current_position % 8 == 0
+            && (new_position == current_position - 1
+                || new_position == current_position - 9
+                || new_position == current_position + 7)
+        {
+            return -1;
+        }
+
+        // Is on the right side of the board
+        if (current_position + 1) % 8 == 0
+            && (new_position == current_position + 1
+                || new_position == current_position - 7
+                || new_position == current_position + 9)
+        {
+            return -1;
+        }
+
+        new_position
+    }
+
     pub fn generate_king_moves(
         &self,
         board: &Board,
@@ -85,25 +111,48 @@ impl MoveGenerator {
         king_position: i8,
     ) -> Vec<i8> {
         let positions = vec![
-            king_position - 1,
-            king_position + 1,
-            king_position - 9,
-            king_position - 8,
-            king_position - 7,
-            king_position + 7,
-            king_position + 8,
-            king_position + 9,
+            self.get_valid_king_move(king_position, king_position - 1),
+            self.get_valid_king_move(king_position, king_position + 1),
+            self.get_valid_king_move(king_position, king_position - 9),
+            self.get_valid_king_move(king_position, king_position - 8),
+            self.get_valid_king_move(king_position, king_position - 7),
+            self.get_valid_king_move(king_position, king_position + 7),
+            self.get_valid_king_move(king_position, king_position + 8),
+            self.get_valid_king_move(king_position, king_position + 9),
         ];
 
         let mut moves = Vec::new();
         let king = board.get_piece(king_position);
+        let is_white_king = is_white_piece(king_position);
+        let pawn_offset = if is_white_king { -8 } else { 8 };
 
         for position in &positions {
             if position < &0 {
                 continue;
             }
 
-            if board.is_valid_position(*position) && !opponent_moves.contains(position) {
+            // is a pawn straight attacking the position?
+            if opponent_moves.contains(position) {
+                let mut possible_pawn = board.get_piece(position + pawn_offset);
+
+                let mut piece_type = get_piece_type(possible_pawn);
+
+                if piece_type == PieceType::Pawn {
+                    moves.push(*position);
+                    continue;
+                } else if piece_type != PieceType::Empty {
+                    continue;
+                }
+
+                possible_pawn = board.get_piece(position + (pawn_offset * 2));
+
+                piece_type = get_piece_type(possible_pawn);
+
+                if piece_type == PieceType::Pawn {
+                    moves.push(*position);
+                }
+            }
+            else if board.is_valid_position(*position) {
                 let piece = board.get_piece(*position);
 
                 if piece == PieceType::Empty as i8 || !is_same_color(king, piece) {
@@ -336,7 +385,8 @@ impl MoveGenerator {
 
         let two_lines_position = position + (offset * 2);
 
-        if self.is_pawn_first_move(white_piece, position) {
+        if self.is_pawn_first_move(white_piece, position) &&
+            get_piece_type(board.get_piece(position + offset)) == PieceType::Empty {
             let existing_piece = board.get_piece(two_lines_position);
 
             if existing_piece == PieceType::Empty as i8 {

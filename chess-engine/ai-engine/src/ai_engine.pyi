@@ -1,10 +1,6 @@
 from typing import Union
 
 
-def get_ai_move(py_pieces: list[Piece], white_player: bool):
-    pass
-
-
 class Piece:
     fen: Union[str, None]
     moves: list[int]
@@ -18,6 +14,12 @@ class Piece:
         pass
 
 class BoardWrapper:
+    def get_move_generation_count(self) -> int:
+        pass
+
+    def get_ai_move(self) -> (int, int):
+        pass
+
     def black_captures_to_fen(self):
         pass
 

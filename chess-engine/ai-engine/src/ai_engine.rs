@@ -3,7 +3,7 @@ mod board_wrapper;
 mod common;
 mod game;
 
-use ai::random_player::RandomPlayer;
+// use ai::random_player::RandomPlayer;
 use board_wrapper::BoardWrapper;
 use pyo3::{exceptions::PyValueError, prelude::*, types::PyList};
 
@@ -27,23 +27,23 @@ pub fn process_pieces(py_list: &PyAny) -> PyResult<Vec<Piece>> {
     }
 }
 
-#[pyfunction]
-fn get_ai_move(py_pieces: &PyAny, white_player: bool) -> (i8, i8) {
-    let random_player = RandomPlayer {};
+// #[pyfunction]
+// fn get_ai_move(board: &PyAny, white_player: bool) -> (i8, i8) {
+//     let random_player = RandomPlayer {};
 
-    if let Ok(pieces) = process_pieces(py_pieces) {
-        random_player.make_move(pieces, white_player)
-    } else {
-        (-1, -1)
-    }
-}
+//     if let Ok(pieces) = process_pieces(py_pieces) {
+//         random_player.make_move(pieces, white_player)
+//     } else {
+//         (-1, -1)
+//     }
+// }
 
 #[pymodule]
 fn ai_engine(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_class::<Piece>()?;
     m.add_class::<BoardWrapper>()?;
 
-    m.add_function(wrap_pyfunction!(get_ai_move, m)?)?;
+    // m.add_function(wrap_pyfunction!(get_ai_move, m)?)?;
 
     Ok(())
 }

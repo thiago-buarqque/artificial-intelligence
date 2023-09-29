@@ -50,8 +50,9 @@ const playMoveAudio = (capture: boolean) => {
   audio.play();
 };
 
-const notAnAvailableMove = (availableMoves: number[], position: number) =>
-  availableMoves.find((move) => move === position) === undefined;
+const notAnAvailableMove = (availableMoves: number[], position: number) => {
+  return availableMoves.find((move) => move === position) === undefined;
+}
 
 const Board = () => {
   const [selectedPiece, setSelectedPiece] = useState<TBoardPiece | null>(null);
@@ -98,7 +99,7 @@ const Board = () => {
   };
 
   const onMovePiece = (cell: HTMLDivElement, cellPosition: number) => {
-    console.log("Cell click");
+    // console.log("Cell click");
     if (selectedPiece) {
       const { position, moves } = selectedPiece;
 
@@ -179,12 +180,32 @@ const Board = () => {
       });
   };
 
+  const fetchCountMoves = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault()
+    let depthInput = document.getElementById("in_depth");
+
+    if (!depthInput) {
+      return
+    }
+
+    let depth = Number((depthInput as HTMLInputElement).value)
+
+    http
+      .post<{moves: number}>("/board/moves/count", {
+        depth 
+      })
+      .then((response) => response.data)
+      .then((data) => {
+        console.log("Moves from here (depth:):", data.moves);
+      });
+  }
+
   useEffect(() => {
     http
       .get<TBoard>("/board")
       .then((response) => response.data)
       .then((data) => {
-        console.log("Setting board", data);
+        // console.log("Setting board", data);
         setBoard(data)
       });
   }, []);
@@ -199,12 +220,18 @@ const Board = () => {
 
   return (
     <>
-      <form method="post" onSubmit={resetBoard} id="load-fen-form">
-        <input type="text" name="fen" id="input-fen" />
-        <button type="submit" id="reset-btn">
-          Load FEN
-        </button>
-      </form>
+    <div id="floating-forms">
+        <form method="post" onSubmit={resetBoard} >
+          <input type="text" name="fen" id="input-fen" />
+          <button type="submit" id="reset-btn">
+            Load FEN
+          </button>
+        </form>
+        <form method="post" onSubmit={fetchCountMoves}>
+          <input type="number" name="depth" id="in_depth" />
+          <button type="submit" id="count_moves_btn">Count</button>
+        </form>
+    </div>
       <div id="board">
         <div id="white-captures" className="captures">
           {board.whiteCaptures.map((piece_fen, i) => (
