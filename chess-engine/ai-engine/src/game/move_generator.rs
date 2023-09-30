@@ -24,16 +24,17 @@ impl SquareOffset {
 pub struct MoveGenerator {}
 
 impl MoveGenerator {
-    fn validate_knight_position(&self, lines_apart: i8, new_position: i8, position: i8) -> i8 {
-        if self.get_positions_line_distance(position, new_position) == lines_apart {
+    fn get_knight_position(&self, lines_apart: i8, new_position: i8, current_position: i8) -> i8 {
+        if self.get_line_distance_between_positions(
+                current_position, new_position) == lines_apart {
             return new_position;
         }
 
-        100
+        -1
     }
 
     // Get positions line distance
-    fn get_positions_line_distance(&self, position1: i8, position2: i8) -> i8 {
+    fn get_line_distance_between_positions(&self, position1: i8, position2: i8) -> i8 {
         let line_start1 = position1 - (position1 % 8);
         let line_start2 = position2 - (position2 % 8);
 
@@ -45,32 +46,28 @@ impl MoveGenerator {
     }
 
     pub fn generate_knight_moves(&self, board: &Board, position: i8) -> Vec<i8> {
-        let positions = vec![
-            self.validate_knight_position(2, position - 17, position),
-            self.validate_knight_position(2, position - 15, position),
-            self.validate_knight_position(1, position - 10, position),
-            self.validate_knight_position(1, position - 6, position),
-            self.validate_knight_position(1, position + 6, position),
-            self.validate_knight_position(1, position + 10, position),
-            self.validate_knight_position(2, position + 15, position),
-            self.validate_knight_position(2, position + 17, position),
+        let positions = [
+            self.get_knight_position(2, position - 17, position),
+            self.get_knight_position(2, position - 15, position),
+            self.get_knight_position(1, position - 10, position),
+            self.get_knight_position(1, position - 6, position),
+            self.get_knight_position(1, position + 6, position),
+            self.get_knight_position(1, position + 10, position),
+            self.get_knight_position(2, position + 15, position),
+            self.get_knight_position(2, position + 17, position),
         ];
 
         let mut moves = Vec::new();
         let knight_piece = board.get_piece(position);
 
-        for &current_position in &positions {
-            if current_position < 0 {
-                continue;
-            }
-
-            if board.is_valid_position(current_position) {
-                let current_piece = board.get_piece(current_position);
+        for position in positions {
+            if board.is_valid_position(position) {
+                let current_piece = board.get_piece(position);
 
                 if current_piece == PieceType::Empty as i8
                     || !is_same_color(knight_piece, current_piece)
                 {
-                    moves.push(current_position);
+                    moves.push(position);
                 }
             }
         }
@@ -78,7 +75,7 @@ impl MoveGenerator {
         moves
     }
 
-    fn get_valid_king_move(&self, current_position: i8, new_position: i8) -> i8 {
+    fn get_king_move(&self, current_position: i8, new_position: i8) -> i8 {
         if !(0..=63).contains(&new_position) {
             return -1;
         }
@@ -110,35 +107,34 @@ impl MoveGenerator {
         opponent_moves: &[i8],
         king_position: i8,
     ) -> Vec<i8> {
-        let positions = vec![
-            self.get_valid_king_move(king_position, king_position - 1),
-            self.get_valid_king_move(king_position, king_position + 1),
-            self.get_valid_king_move(king_position, king_position - 9),
-            self.get_valid_king_move(king_position, king_position - 8),
-            self.get_valid_king_move(king_position, king_position - 7),
-            self.get_valid_king_move(king_position, king_position + 7),
-            self.get_valid_king_move(king_position, king_position + 8),
-            self.get_valid_king_move(king_position, king_position + 9),
+        let positions = [
+            self.get_king_move(king_position, king_position - 1),
+            self.get_king_move(king_position, king_position + 1),
+            self.get_king_move(king_position, king_position - 9),
+            self.get_king_move(king_position, king_position - 8),
+            self.get_king_move(king_position, king_position - 7),
+            self.get_king_move(king_position, king_position + 7),
+            self.get_king_move(king_position, king_position + 8),
+            self.get_king_move(king_position, king_position + 9),
         ];
 
         let mut moves = Vec::new();
         let king = board.get_piece(king_position);
-        let is_white_king = is_white_piece(king_position);
-        let pawn_offset = if is_white_king { -8 } else { 8 };
+        let pawn_offset = if is_white_piece(king_position) { -8 } else { 8 };
 
-        for position in &positions {
-            if position < &0 {
+        for position in positions {
+            if position < 0 {
                 continue;
             }
 
-            // is a pawn straight attacking the position?
-            if opponent_moves.contains(position) {
+            if opponent_moves.contains(&position) {
+                // Is a pawn straight attacking the position?
                 let mut possible_pawn = board.get_piece(position + pawn_offset);
 
                 let mut piece_type = get_piece_type(possible_pawn);
 
                 if piece_type == PieceType::Pawn {
-                    moves.push(*position);
+                    moves.push(position);
                     continue;
                 } else if piece_type != PieceType::Empty {
                     continue;
@@ -149,14 +145,14 @@ impl MoveGenerator {
                 piece_type = get_piece_type(possible_pawn);
 
                 if piece_type == PieceType::Pawn {
-                    moves.push(*position);
+                    moves.push(position);
                 }
             }
-            else if board.is_valid_position(*position) {
-                let piece = board.get_piece(*position);
+            else if board.is_valid_position(position) {
+                let piece = board.get_piece(position);
 
                 if piece == PieceType::Empty as i8 || !is_same_color(king, piece) {
-                    moves.push(*position);
+                    moves.push(position);
                 }
             }
         }
@@ -170,12 +166,14 @@ impl MoveGenerator {
 
     fn is_path_clear(&self, board: &Board, start: i8, end: i8, step: i8) -> bool {
         let mut i = start;
+
         while i != end {
             if board.get_piece(i) != PieceType::Empty as i8 {
                 return false;
             }
             i += step;
         }
+        
         true
     }
 
@@ -217,6 +215,7 @@ impl MoveGenerator {
             {
                 let new_position = position - 2;
 
+                // The next two squares on the left are not attacked
                 if self.position_is_not_attacked(new_position, opponent_moves)
                     && self.position_is_not_attacked(position - 1, opponent_moves)
                 {
@@ -229,6 +228,7 @@ impl MoveGenerator {
             {
                 let new_position = position + 2;
 
+                // The next two squares on the right are not attacked
                 if self.position_is_not_attacked(new_position, opponent_moves)
                     && self.position_is_not_attacked(position + 1, opponent_moves)
                 {
@@ -286,18 +286,21 @@ impl MoveGenerator {
         offset: SquareOffset,
     ) {
         for i in 0..7 {
+            // Is on the right side of the board
             if (offset == SquareOffset::BottomRight || offset == SquareOffset::TopRight)
                 && (position + 1) % 8 == 0
             {
                 break;
             }
 
+            // Is on the left side of the board
             if (offset == SquareOffset::BottomLeft || offset == SquareOffset::TopLeft)
                 && position % 8 == 0
             {
                 break;
             }
 
+            // Should go left/right but is on the edge of the board
             if (offset == SquareOffset::Left && position % 8 == 0)
                 || (offset == SquareOffset::Right && (position + 1) % 8 == 0)
             {
@@ -322,11 +325,12 @@ impl MoveGenerator {
             }
 
             if offset != SquareOffset::LineAbove && offset != SquareOffset::LineBelow {
-                let right_offset = offset == SquareOffset::Right
+                let righty_offset = offset == SquareOffset::Right
                     || offset == SquareOffset::TopRight
                     || offset == SquareOffset::BottomRight;
 
-                if (current_position + if right_offset { 1 } else { 0 }) % 8 == 0 {
+                // Arrived at the edge of the board
+                if (current_position + if righty_offset { 1 } else { 0 }) % 8 == 0 {
                     break;
                 }
             }
@@ -342,6 +346,7 @@ impl MoveGenerator {
 
         let next_line_position = position + offset;
 
+        // Actually the pawn should be already promoted
         if !board.is_valid_position(next_line_position) {
             return moves;
         }
@@ -354,6 +359,7 @@ impl MoveGenerator {
             position,
             white_piece,
         );
+
         self.generate_pawn_capturing_moves(
             board,
             &mut moves,
@@ -361,6 +367,7 @@ impl MoveGenerator {
             position,
             white_piece,
         );
+
         self.generate_en_passant_moves(board, &mut moves, offset, position, white_piece);
 
         moves
@@ -375,18 +382,16 @@ impl MoveGenerator {
         position: i8,
         white_piece: bool,
     ) {
-        if board.is_valid_position(next_line_position) {
-            let existing_piece = board.get_piece(next_line_position);
+        let existing_piece = board.get_piece(next_line_position);
 
-            if existing_piece == PieceType::Empty as i8 {
-                moves.push(next_line_position);
-            }
+        if existing_piece == PieceType::Empty as i8 {
+            moves.push(next_line_position);
         }
 
-        let two_lines_position = position + (offset * 2);
+        if self.is_pawn_first_move(white_piece, position) &&        
+            get_piece_type(board.get_piece(position + offset)) == PieceType::Empty {        
+            let two_lines_position = position + (offset * 2);
 
-        if self.is_pawn_first_move(white_piece, position) &&
-            get_piece_type(board.get_piece(position + offset)) == PieceType::Empty {
             let existing_piece = board.get_piece(two_lines_position);
 
             if existing_piece == PieceType::Empty as i8 {
@@ -407,6 +412,33 @@ impl MoveGenerator {
         false
     }
 
+    fn generate_pawn_diagonal_captures(
+        &self,
+        board: &Board,
+        moves: &mut Vec<i8>,
+        next_line_position: i8,
+        position: i8,
+        white_piece: bool,
+        left_diagonal: bool
+    ) {
+        if (left_diagonal && (position % 8 == 0)) || 
+            !left_diagonal && ((position + 1) % 8 == 0) {
+            return;
+        }
+
+        let diagonal = next_line_position - if left_diagonal {1} else {-1};
+
+        let existing_piece = board.get_piece(diagonal);
+
+        if board.is_valid_position(diagonal)
+            && existing_piece != PieceType::Empty as i8
+            && is_white_piece(existing_piece) != white_piece
+        {
+            moves.push(diagonal);
+        }
+    }
+
+    // Recenty refactored
     fn generate_pawn_capturing_moves(
         &self,
         board: &Board,
@@ -415,39 +447,13 @@ impl MoveGenerator {
         position: i8,
         white_piece: bool,
     ) {
-        let mut diagonal_left = next_line_position - 1;
+        self.generate_pawn_diagonal_captures(
+            board, moves, next_line_position, position, white_piece, true
+        );
 
-        if position % 8 == 0 {
-            diagonal_left = -1;
-        }
-
-        if diagonal_left != -1 {
-            let existing_piece = board.get_piece(diagonal_left);
-
-            if board.is_valid_position(diagonal_left)
-                && existing_piece != PieceType::Empty as i8
-                && is_white_piece(existing_piece) != white_piece
-            {
-                moves.push(diagonal_left);
-            }
-        }
-
-        let mut diagonal_right = next_line_position + 1;
-
-        if (position + 1) % 8 == 0 {
-            diagonal_right = -1;
-        }
-
-        if diagonal_right != -1 {
-            let existing_piece = board.get_piece(diagonal_right);
-
-            if board.is_valid_position(diagonal_right)
-                && existing_piece != PieceType::Empty as i8
-                && is_white_piece(existing_piece) != white_piece
-            {
-                moves.push(diagonal_right);
-            }
-        }
+        self.generate_pawn_diagonal_captures(
+            board, moves, next_line_position, position, white_piece, false
+        );
     }
 
     fn generate_en_passant_moves(
@@ -459,6 +465,7 @@ impl MoveGenerator {
         white_piece: bool,
     ) {
         let left_square = if position % 8 != 0 { position - 1 } else { -1 };
+
         let right_square = if (position + 1) % 8 != 0 {
             position + 1
         } else {
