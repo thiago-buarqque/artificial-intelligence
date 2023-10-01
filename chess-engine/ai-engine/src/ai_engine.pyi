@@ -14,6 +14,9 @@ class Piece:
         pass
 
 class BoardWrapper:
+    def get_pawn_promotion_position(self) -> int:
+        pass
+
     def get_move_generation_count(self) -> int:
         pass
 
@@ -42,4 +45,7 @@ class BoardWrapper:
         pass
 
     def load_position(self):
+        pass
+
+    def move_piece(self, from_index: int, to_index: int):
         pass

@@ -37,7 +37,7 @@ impl BoardWrapper {
 
         locked_board = board.lock().unwrap();
 
-        locked_board.set_move_generator(Some(move_generator));
+        // locked_board.set_move_generator(Some(move_generator));
 
         drop(locked_board);
 
@@ -75,6 +75,8 @@ impl BoardWrapper {
     pub fn get_available_moves(&mut self) -> Vec<Option<Piece>> {
         let mut pieces: Vec<Option<Piece>> = Vec::new();
 
+        println!("Just entered RUST");
+
         for piece in self.board.lock().unwrap().get_pieces().iter().flatten() {
             pieces.push(Some(Piece::new(
                 piece.get_fen().clone(),
@@ -91,6 +93,10 @@ impl BoardWrapper {
         let board = self.board.lock().unwrap();
 
         board.get_winner_fen()
+    }
+
+    pub fn get_pawn_promotion_position(&self) -> i8 {
+        self.board.lock().unwrap().get_pawn_promotion_position()
     }
 
     pub fn is_white_move(&self) -> bool {

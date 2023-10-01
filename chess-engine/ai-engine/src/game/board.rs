@@ -9,7 +9,7 @@ use super::{board_state::BoardState, move_generator::MoveGenerator};
 
 #[derive(Debug, Clone)]
 pub struct Board {
-    move_generator: Option<MoveGenerator>,
+    // move_generator: Option<MoveGenerator>,
     state: Arc<Mutex<BoardState>>,
     state_history: Vec<BoardState>,
 }
@@ -20,7 +20,7 @@ impl Board {
 
         Board {
             state,
-            move_generator: None,
+            // move_generator: None,
             state_history: Vec::new(),
         }
     }
@@ -29,18 +29,27 @@ impl Board {
         &self.state
     }
 
-    pub fn set_move_generator(&mut self, move_generator: Option<MoveGenerator>) {
-        self.move_generator = move_generator;
+    // pub fn set_move_generator(&mut self, move_generator: Option<MoveGenerator>) {
+    //     self.move_generator = move_generator;
+    // }
+
+    fn get_move_generator(&self) -> MoveGenerator {
+        MoveGenerator::new(Arc::new(Mutex::new(self.clone())), self.state.clone())
     }
 
     pub fn get_pieces(&mut self) -> Vec<Option<BoardPiece>> {
-        if let Some(ref mut move_generator) = self.move_generator {
-            move_generator.load_state(self.state.clone());
+        let mut move_generator = self.get_move_generator();
 
-            return move_generator.get_available_moves();
-        }
+        move_generator.get_available_moves(self)
 
-        Vec::new()
+        // if let Some(ref mut move_generator) = self.move_generator {
+        //     move_generator.load_state(self.state.clone());
+
+        // }
+
+        // println!("There is not move_generator");
+
+        // Vec::new()
     }
 
     fn place_piece(&mut self, index: i8, piece: i8) {
@@ -78,6 +87,10 @@ impl Board {
         }
     }
 
+    pub fn get_pawn_promotion_position(&self) -> i8 {
+        self.state.lock().unwrap().get_pawn_promotion_position()
+    }
+
     pub fn load_state_and_clear_history(&mut self, state: Arc<Mutex<BoardState>>) {
         self.state_history = Vec::new();
         self.state = state;
@@ -99,6 +112,10 @@ impl Board {
         }
     }
 
+    pub fn get_state_clone(&self) -> BoardState {
+        self.state.lock().unwrap().clone()
+    }
+
     fn _move_piece(
         &mut self,
         from_index: i8,
@@ -111,11 +128,12 @@ impl Board {
             let moving_piece = state.get_piece(from_index);
             let replaced_piece = state.get_piece(to_index);
 
+            println!("130");
+            drop(state);
             if moving_piece == PieceType::Empty as i8 {
                 return Err("No piece at the position ");
             }
 
-            drop(state);
             if self.is_en_passant_capture(moving_piece, to_index) {
                 self.capture_en_passant(moving_piece);
             } else if moving_piece == (PieceColor::White as i8 | PieceType::King as i8)
@@ -124,6 +142,7 @@ impl Board {
                 self.handle_king_move(from_index, moving_piece, to_index);
             }
 
+            println!("Placing piece");
             self.place_piece(to_index, moving_piece);
 
             state = self.state.lock().unwrap();
@@ -131,6 +150,8 @@ impl Board {
             state.place_piece(from_index, PieceType::Empty as i8);
 
             drop(state);
+
+            println!("Registering en passant");
 
             self.register_en_passant(from_index, moving_piece, to_index);
 
@@ -153,6 +174,7 @@ impl Board {
                 state.update_castling_ability(to_index, to_index < 8, to_index % 8 == 7);
             }
 
+            println!("Perfomed move");
             return Ok(());
         }
 
@@ -172,9 +194,8 @@ impl Board {
             // The error will never occur, indexes are 0..=63
             drop(state);
             let _ = self.castle(from_index, to_index, white_piece);
+            state = self.state.lock().unwrap();
         }
-
-        state = self.state.lock().unwrap();
 
         if white_piece {
             state.set_white_king_moved(true);
@@ -242,6 +263,7 @@ impl Board {
     }
 
     fn is_en_passant_capture(&self, piece: i8, to_index: i8) -> bool {
+        println!("Entering is en passant");
         if is_piece_of_type(piece, PieceType::Pawn) {
             let white_piece = is_white_piece(piece);
 
@@ -253,6 +275,7 @@ impl Board {
                 state.white_en_passant()
             };
 
+            println!("exiting is en passant");
             return en_passant != -1 && to_index == en_passant;
         }
 

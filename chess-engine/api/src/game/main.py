@@ -46,16 +46,16 @@ def move_piece():
     # 330, (0, 1)
 
     # Ai move
-    if board.get_winner_fen() == "-":
-        start = time.time()
-        move_value, destination = \
-            board.get_ai_move()
-
-        end = time.time()
-        print(f"Elapsed time: {(end - start) * 1000}")
-        print(f"{move_value}, {destination}")
-
-        board.move_piece(destination[0], destination[1])
+    # if board.get_winner_fen() == "-":
+    #     start = time.time()
+    #     move_value, destination = \
+    #         board.get_ai_move()
+    #
+    #     end = time.time()
+    #     print(f"Elapsed time: {(end - start) * 1000}")
+    #     print(f"{move_value}, {destination}")
+    #
+    #     board.move_piece(destination[0], destination[1])
 
     return get_board()
 

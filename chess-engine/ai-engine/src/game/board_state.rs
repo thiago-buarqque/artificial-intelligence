@@ -165,10 +165,8 @@ impl BoardState {
             self.black_able_to_king_side_castle = castling.contains('k');
             self.black_able_to_queen_side_castle = castling.contains('q');
 
-            self.white_king_moved =
-                self.white_able_to_king_side_castle || self.white_able_to_queen_side_castle;
-            self.black_king_moved =
-                self.black_able_to_king_side_castle || self.black_able_to_queen_side_castle;
+            self.white_king_moved = false;
+            self.black_king_moved = false;
         }
     }
 
@@ -232,6 +230,10 @@ impl BoardState {
         &self.squares
     }
 
+    pub fn get_pawn_promotion_position(&self) -> i8 {
+        self.pawn_promotion_position
+    }
+
     pub fn white_able_to_king_side_castle(&self) -> bool {
         self.white_able_to_king_side_castle
     }
@@ -262,6 +264,7 @@ impl BoardState {
     }
 
     pub fn set_is_white_move(&mut self, value: bool) {
+        println!("Setting is white move to {}", value);
         self.is_white_move = value;
     }
 
@@ -295,6 +298,10 @@ impl BoardState {
 
     pub fn set_white_able_to_king_side_castle(&mut self, value: bool) {
         self.white_able_to_king_side_castle = value;
+    }
+
+    pub fn set_pawn_promotion_position(&mut self, pawn_promotion_position: i8) {
+        self.pawn_promotion_position = pawn_promotion_position
     }
 
     pub fn set_white_able_to_queen_side_castle(&mut self, value: bool) {

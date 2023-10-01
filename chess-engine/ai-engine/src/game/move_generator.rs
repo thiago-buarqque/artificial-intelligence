@@ -1,7 +1,7 @@
 use std::{
     cell::RefCell,
     rc::Rc,
-    sync::{Arc, Mutex},
+    sync::{Arc, Mutex, MutexGuard},
 };
 
 use crate::common::{
@@ -59,7 +59,8 @@ impl MoveGenerator {
         self.board_state = state;
     }
 
-    pub fn get_available_moves(&mut self) -> Vec<Option<BoardPiece>> {
+    pub fn get_available_moves(&mut self, board: &mut Board) -> Vec<Option<BoardPiece>> {
+        println!("Let's generate the available moves");
         let mut black_moves: Vec<i8> = Vec::new();
         let mut white_moves: Vec<i8> = Vec::new();
         let mut pieces: Vec<Option<BoardPiece>> = Vec::new();
@@ -73,11 +74,15 @@ impl MoveGenerator {
 
         drop(squares_guard);
 
+        println!("Dropped squares_guard");
+
         for (position, &piece_value) in board_squares.squares().iter().enumerate() {
+            println!("Doing for position: {}", position);
             let white_piece = is_white_piece(piece_value);
             let piece_type = get_piece_type(piece_value);
 
             if piece_type == PieceType::King {
+                println!("Found king in {}", position);
                 if white_piece {
                     white_king_position = position as i8;
                 } else {
@@ -85,6 +90,10 @@ impl MoveGenerator {
                 }
                 pieces.push(None);
             } else {
+                println!(
+                    "Going to generate for {}",
+                    piece_fen_from_value(piece_value)
+                );
                 let moves = self.generate_moves(piece_type, position as i8);
 
                 let piece_fen = piece_fen_from_value(piece_value);
@@ -114,7 +123,12 @@ impl MoveGenerator {
             &white_moves,
         );
 
-        self.remove_blocked_piece_moves(&mut pieces, black_king_position, white_king_position);
+        self.remove_blocked_piece_moves(
+            &mut pieces,
+            black_king_position,
+            white_king_position,
+            board,
+        );
 
         pieces
     }
@@ -127,8 +141,10 @@ impl MoveGenerator {
         white_king_position: i8,
         white_moves: &[i8],
     ) {
+        println!("Generating king moves");
         let mut white_king_moves = self.generate_king_moves(black_moves, white_king_position);
         let mut black_king_moves = self.generate_king_moves(white_moves, black_king_position);
+        println!("Generating king moves(2)");
 
         let common_moves: Vec<i8> = white_king_moves
             .iter()
@@ -139,14 +155,13 @@ impl MoveGenerator {
         white_king_moves.retain(|x| !common_moves.contains(x));
         black_king_moves.retain(|x| !common_moves.contains(x));
 
+        let locked_board_state = self.board_state.lock().unwrap();
+
         let white_king_piece = BoardPiece::new(
             piece_fen_from_value(PieceColor::White as i8 | PieceType::King as i8),
             white_king_moves,
             white_king_position,
-            self.board_state
-                .lock()
-                .unwrap()
-                .get_piece(white_king_position),
+            locked_board_state.get_piece(white_king_position),
             true,
         );
 
@@ -154,10 +169,7 @@ impl MoveGenerator {
             piece_fen_from_value(PieceColor::Black as i8 | PieceType::King as i8),
             black_king_moves,
             black_king_position,
-            self.board_state
-                .lock()
-                .unwrap()
-                .get_piece(black_king_position),
+            locked_board_state.get_piece(black_king_position),
             false,
         );
 
@@ -170,33 +182,53 @@ impl MoveGenerator {
         pieces: &mut [Option<BoardPiece>],
         black_king_position: i8,
         white_king_position: i8,
+        board: &mut Board,
     ) {
-        let mut board_state = self.board_state.lock().unwrap();
+        println!("Starting removing blocked piece moves");
+        let mut locked_board_state = self.board_state.lock().unwrap();
 
-        let king_position = if board_state.is_white_move() {
+        let king_position = if locked_board_state.is_white_move() {
             white_king_position
         } else {
             black_king_position
         };
 
-        let mut board = self.board.lock().unwrap();
+        let is_white_move = locked_board_state.is_white_move();
+        drop(locked_board_state);
+
         let mut player_moves: Vec<i8> = Vec::new();
 
         // Is it possible to brake the loop earlier if king is in check on the next move?
         for board_piece in pieces.iter_mut().flatten() {
+            // println!("To piece: {}", board_piece.get_position());
             let piece_position = board_piece.get_position();
-            let piece_value = board_state.get_piece(piece_position);
+
+            locked_board_state = self.board_state.lock().unwrap();
+
+            let piece_value = locked_board_state.get_piece(piece_position);
             let mut invalid_moves = Vec::new();
 
-            if board_piece.is_white() != board_state.is_white_move() {
+            println!("Dropping locked_board_state");
+            drop(locked_board_state);
+
+            if board_piece.is_white() != is_white_move {
                 continue;
             }
 
+            println!("Piece moves: {:?}", board_piece.get_immutable_moves());
+
             for move_pos in board_piece.get_immutable_moves() {
-                board.move_piece(piece_position, move_pos);
+                println!("Moving piece... 212");
+                let _ = board.move_piece(piece_position, move_pos);
+                
+                let state = board.get_state_clone();
 
-                let opponent_next_moves = self.get_next_moves_attack_to_king(king_position);
+                println!("Comece a partir daqui, a bronca eh parece ser o estado em que esta sendo olhado");
+                println!("Calling get_next_moves_attack_to_king");
+                let opponent_next_moves = self.get_next_moves_attack_to_king(king_position, state);
 
+                board.undo_move();
+                println!("opponent_next_moves: {:?}", opponent_next_moves);
                 if get_piece_type(piece_value) == PieceType::King
                     && opponent_next_moves.contains(&move_pos)
                 {
@@ -211,43 +243,48 @@ impl MoveGenerator {
                 if opponent_next_moves.contains(&king_position) {
                     invalid_moves.push(move_pos);
                 }
-
-                board.undo_move();
             }
 
             board_piece
                 .get_moves()
                 .retain(|&x| !invalid_moves.contains(&x));
 
-            if is_white_piece(piece_value) == board_state.is_white_move() {
+            if is_white_piece(piece_value) == is_white_move {
                 player_moves.extend(board_piece.get_immutable_moves());
             }
         }
+        println!("Acabou???");
 
-        // TODO Check on when returning pieces on Board
+        // TODO Check this when returning pieces on Board
         if player_moves.is_empty() {
-            let winner = if board_state.is_white_move() {
+            let winner = if is_white_move {
                 PieceColor::Black as i8
             } else {
                 PieceColor::White as i8
             };
 
-            board_state.set_winner(winner);
+            locked_board_state = self.board_state.lock().unwrap();
+
+            locked_board_state.set_winner(winner);
         }
+        println!("Acabou");
     }
 
-    fn get_next_moves_attack_to_king(&self, king_position: i8) -> Vec<i8> {
+    fn get_next_moves_attack_to_king(&self, king_position: i8, board_state: BoardState) -> Vec<i8> {
         let mut all_moves: Vec<i8> = Vec::new();
 
-        for (position, &piece) in self
-            .board_state
-            .lock()
-            .unwrap()
-            .squares()
-            .iter()
-            .enumerate()
-        {
-            if is_white_piece(piece) != self.board_state.lock().unwrap().is_white_move() {
+        // let locked_board_state = board_state.lock().unwrap();
+
+        println!("The state: {:#?}", board_state);
+
+        let is_white_move = board_state.is_white_move();
+
+        let squares = *board_state.squares();
+
+        // drop(locked_board_state);
+
+        for (position, &piece) in squares.iter().enumerate() {
+            if is_white_piece(piece) != is_white_move {
                 continue;
             }
 
@@ -262,11 +299,11 @@ impl MoveGenerator {
                 //
                 // If the king is being attacked, we're abre to break the loop, no need
                 // to check all piece in the board
-                if moves.contains(&king_position) {
-                    return all_moves;
-                }
-
                 all_moves.extend(moves);
+
+                // if all_moves.contains(&king_position) {
+                //     return all_moves;
+                // }
             } else {
                 let opponent_moves: Vec<i8> = Vec::new();
                 // generates the current player king possible moves, even if they're invalid.
@@ -279,11 +316,11 @@ impl MoveGenerator {
                 //
                 // If the king is being attacked, we're abre to break the loop, no need
                 // to check all piece in the board
-                if moves.contains(&king_position) {
-                    return all_moves;
-                }
-
                 all_moves.extend(moves);
+
+                // if all_moves.contains(&king_position) {
+                //     return all_moves;
+                // }
             }
         }
 
@@ -421,6 +458,8 @@ impl MoveGenerator {
             }
         }
 
+        drop(board_state);
+
         if !opponent_moves.contains(&king_position) {
             self.generate_castle_moves(king, &mut moves, opponent_moves, king_position);
         }
@@ -475,6 +514,8 @@ impl MoveGenerator {
         if (is_white_king && !board_state.white_king_moved())
             || (!is_white_king && !board_state.black_king_moved())
         {
+            drop(board_state);
+
             let (queen_side_rook_position, king_side_rook_position) =
                 if is_white_king { (56, 63) } else { (0, 7) };
 
@@ -618,6 +659,8 @@ impl MoveGenerator {
         if !board_state.is_valid_position(next_line_position) {
             return moves;
         }
+
+        drop(board_state);
 
         self.generate_pawn_regular_moves(
             &mut moves,
