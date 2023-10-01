@@ -14,6 +14,5 @@ class BoardDTO(DTO):
                       whiteCaptures=board.white_captures_to_fen(),
                       winner=board.get_winner_fen(),
                       whiteMove=board.is_white_move(),
-                      whiteEnPassant=board.get_white_en_passant(),
-                      blackEnPassant=board.get_black_en_passant()
+                      pawn_promotion=board.get_pawn_promotion()
                       )

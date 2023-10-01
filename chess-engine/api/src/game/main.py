@@ -39,17 +39,23 @@ def move_piece():
 
     board.move_piece(from_index, to_index)
 
+    # Pure minimax on (depth: 4)
+    # FEN: r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq -
+    # Evaluated 3619627 states
+    # Elapsed time: 3127.3396015167236ms
+    # 330, (0, 1)
+
     # Ai move
-    # if board.get_winner_fen() == "-":
-    #     start = time.time()
-    #     move_value, destination = \
-    #         board.get_ai_move()
-    #
-    #     end = time.time()
-    #     print(f"Elapsed time: {end - start}")
-    #     print(f"{move_value}, {destination}")
-    #
-    #     board.move_piece(destination[0], destination[1])
+    if board.get_winner_fen() == "-":
+        start = time.time()
+        move_value, destination = \
+            board.get_ai_move()
+
+        end = time.time()
+        print(f"Elapsed time: {(end - start) * 1000}")
+        print(f"{move_value}, {destination}")
+
+        board.move_piece(destination[0], destination[1])
 
     return get_board()
 

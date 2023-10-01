@@ -1,5 +1,4 @@
 use pyo3::prelude::*;
-use crate::common::board_piece::BoardPiece;
 
 #[pyclass]
 #[derive(Debug, Clone)]

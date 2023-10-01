@@ -107,18 +107,11 @@ pub fn get_piece_worth(piece_value: i8) -> i32 {
     }
 }
 
-
 const WHITE_LOWER_BOUND: i8 = PieceColor::White as i8 | PieceType::Bishop as i8;
 const WHITE_UPPER_BOUND: i8 = PieceColor::White as i8 | PieceType::Rook as i8;
-const BLACK_LOWER_BOUND: i8 = PieceColor::Black as i8 | PieceType::Bishop as i8;
-const BLACK_UPPER_BOUND: i8 = PieceColor::Black as i8 | PieceType::Rook as i8;
 
 pub fn is_white_piece(piece_value: i8) -> bool {
     (WHITE_LOWER_BOUND..=WHITE_UPPER_BOUND).contains(&piece_value)
-}
-
-pub fn is_black_piece(piece_value: i8) -> bool {
-    (BLACK_LOWER_BOUND..=BLACK_UPPER_BOUND).contains(&piece_value)
 }
 
 pub fn is_same_color(piece1: i8, piece2: i8) -> bool {

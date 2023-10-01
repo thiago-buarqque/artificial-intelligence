@@ -1,5 +1,3 @@
-use std::collections::HashSet;
-
 #[derive(Debug, Clone)]
 pub struct BoardPiece {
     fen: String,
