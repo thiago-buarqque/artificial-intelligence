@@ -14,10 +14,22 @@ impl MiniMax {
         MiniMax { states_checked: 0 }
     }
 
-    pub fn make_move(&mut self, board: &Arc<Mutex<Board>>) -> (i32, (i8, i8)) {
-        let depth: u8 = 4;
+    pub fn make_move(&mut self, board: &Arc<Mutex<Board>>, depth: u8) -> (i32, (i8, i8)) {
+        // let mut locked_board = board.lock().unwrap();
+        // let mut state = locked_board.get_state_reference().clone();
+
+        //println!("Original state: {:#?}", state);
+
+        // drop(locked_board);
 
         self.minimax(board, depth, true)
+
+        // locked_board = board.lock().unwrap();
+        // state = locked_board.get_state_reference().clone();
+        //println!("Last state: {:#?}", state);
+        // locked_board.load_state_and_clear_history(state);
+
+        // result
     }
 
     fn minimax(&mut self, board: &Arc<Mutex<Board>>, depth: u8, max: bool) -> (i32, (i8, i8)) {
@@ -32,7 +44,7 @@ impl MiniMax {
         let mut value = if max { i32::MIN } else { i32::MAX };
         let mut best_move: (i8, i8) = (-1, -1);
 
-        let pieces = locked_board.get_pieces();
+        let pieces = locked_board.get_pieces().clone();
 
         // get_available_moves should only return the pieces, not empties
         for piece in pieces.iter().flatten() {
@@ -43,7 +55,8 @@ impl MiniMax {
             }
 
             for piece_move in piece.get_immutable_moves().iter() {
-                let state = locked_board.get_state().clone();
+                // let state = locked_board.get_state_reference().clone();
+                //println!("Ai moving: {}->{}", piece.get_position(), piece_move);
                 let _ = locked_board.move_piece(piece.get_position(), *piece_move);
 
                 self.states_checked += 1;
@@ -68,7 +81,8 @@ impl MiniMax {
 
                 locked_board = board.lock().unwrap();
 
-                locked_board.load_state_and_clear_history(state);
+                locked_board.undo_move();
+                // locked_board.load_state_and_clear_history(state);
             }
         }
 

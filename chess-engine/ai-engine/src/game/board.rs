@@ -25,7 +25,7 @@ impl Board {
         }
     }
 
-    pub fn get_state(&self) -> &Arc<Mutex<BoardState>> {
+    pub fn get_state_reference(&self) -> &Arc<Mutex<BoardState>> {
         &self.state
     }
 
@@ -83,6 +83,7 @@ impl Board {
         match self.state.lock().unwrap().winner() {
             x if x == (PieceColor::White as i8) => String::from("w"),
             x if x == (PieceColor::Black as i8) => String::from("b"),
+            x if x == (PieceColor::Black as i8 | PieceColor::White as i8) => String::from("bw"),
             _ => String::from("-"),
         }
     }
@@ -97,6 +98,7 @@ impl Board {
     }
 
     pub fn move_piece(&mut self, from_index: i8, to_index: i8) -> Result<(), &'static str> {
+        //println!("Going to move piece: {}->{}", from_index, to_index);
         let state = self.state.lock().unwrap();
 
         self.state_history.push(state.clone());
@@ -125,13 +127,15 @@ impl Board {
         let mut state = self.state.lock().unwrap();
 
         if state.is_valid_position(from_index) && state.is_valid_position(to_index) {
+            //println!("Position is valid");
             let moving_piece = state.get_piece(from_index);
             let replaced_piece = state.get_piece(to_index);
 
-            println!("130");
             drop(state);
             if moving_piece == PieceType::Empty as i8 {
-                return Err("No piece at the position ");
+                return Err("No piece at the position");
+            } else if get_piece_type(replaced_piece) == PieceType::King {
+                return Err("Can't capture king at position");
             }
 
             if self.is_en_passant_capture(moving_piece, to_index) {
@@ -142,7 +146,6 @@ impl Board {
                 self.handle_king_move(from_index, moving_piece, to_index);
             }
 
-            println!("Placing piece");
             self.place_piece(to_index, moving_piece);
 
             state = self.state.lock().unwrap();
@@ -150,8 +153,6 @@ impl Board {
             state.place_piece(from_index, PieceType::Empty as i8);
 
             drop(state);
-
-            println!("Registering en passant");
 
             self.register_en_passant(from_index, moving_piece, to_index);
 
@@ -174,7 +175,7 @@ impl Board {
                 state.update_castling_ability(to_index, to_index < 8, to_index % 8 == 7);
             }
 
-            println!("Perfomed move");
+            //println!("Moved okay");
             return Ok(());
         }
 
@@ -263,7 +264,6 @@ impl Board {
     }
 
     fn is_en_passant_capture(&self, piece: i8, to_index: i8) -> bool {
-        println!("Entering is en passant");
         if is_piece_of_type(piece, PieceType::Pawn) {
             let white_piece = is_white_piece(piece);
 
@@ -275,7 +275,6 @@ impl Board {
                 state.white_en_passant()
             };
 
-            println!("exiting is en passant");
             return en_passant != -1 && to_index == en_passant;
         }
 

@@ -27,8 +27,13 @@ def get_board():
 def get_move_count():
     depth = request.json["depth"]
 
+    start = time.time()
+    states = board.get_move_generation_count(int(depth))
+    end = time.time()
+    print(f"Elapsed time: {(end - start) * 1000}")
+
     return to_json_response({
-        "moves": board.get_move_generation_count(int(depth))
+        "moves": states
     })
 
 
@@ -46,16 +51,17 @@ def move_piece():
     # 330, (0, 1)
 
     # Ai move
-    # if board.get_winner_fen() == "-":
-    #     start = time.time()
-    #     move_value, destination = \
-    #         board.get_ai_move()
-    #
-    #     end = time.time()
-    #     print(f"Elapsed time: {(end - start) * 1000}")
-    #     print(f"{move_value}, {destination}")
-    #
-    #     board.move_piece(destination[0], destination[1])
+    if board.get_winner_fen() == "-":
+        start = time.time()
+        move_value, destination = \
+            board.get_ai_move(1)
+
+        end = time.time()
+        print(f"Elapsed time: {(end - start) * 1000}")
+        print(f"{move_value}, ({destination[0]}, {destination[1]})")
+
+        if destination[0] != -1 and destination[1] != -1:
+            board.move_piece(destination[0], destination[1])
 
     return get_board()
 

@@ -214,7 +214,11 @@ const Board = () => {
     // console.log(board);
 
     if (board.winner !== "-") {
-      alert(board.winner === 'w' ? `Humano venceu!` : `IA venceu!`)
+      if (board.winner === "bw") {
+        alert("Draw")
+      } else {
+        alert(board.winner === 'w' ? `Humano venceu!` : `IA venceu!`)
+      }
     }
   }, [board]);
 

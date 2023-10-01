@@ -1,4 +1,4 @@
-use crate::common::piece_utils::{piece_value_from_fen, pieces_to_fen};
+use crate::common::piece_utils::{piece_value_from_fen, pieces_to_fen, get_piece_type, PieceType};
 
 #[derive(Debug, Clone)]
 pub struct BoardState {
@@ -80,6 +80,9 @@ impl BoardState {
     }
 
     pub fn place_piece(&mut self, index: i8, piece: i8) {
+        if get_piece_type(self.get_piece(index)) == PieceType::King {
+            println!("Someone is replacing the king")
+        }
         self.squares[index as usize] = piece;
     }
 
@@ -264,7 +267,6 @@ impl BoardState {
     }
 
     pub fn set_is_white_move(&mut self, value: bool) {
-        println!("Setting is white move to {}", value);
         self.is_white_move = value;
     }
 

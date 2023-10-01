@@ -60,7 +60,6 @@ impl MoveGenerator {
     }
 
     pub fn get_available_moves(&mut self, board: &mut Board) -> Vec<Option<BoardPiece>> {
-        println!("Let's generate the available moves");
         let mut black_moves: Vec<i8> = Vec::new();
         let mut white_moves: Vec<i8> = Vec::new();
         let mut pieces: Vec<Option<BoardPiece>> = Vec::new();
@@ -74,26 +73,20 @@ impl MoveGenerator {
 
         drop(squares_guard);
 
-        println!("Dropped squares_guard");
-
         for (position, &piece_value) in board_squares.squares().iter().enumerate() {
-            println!("Doing for position: {}", position);
             let white_piece = is_white_piece(piece_value);
             let piece_type = get_piece_type(piece_value);
 
             if piece_type == PieceType::King {
-                println!("Found king in {}", position);
                 if white_piece {
+                    println!("Found white king at: {position}");
                     white_king_position = position as i8;
                 } else {
+                    println!("Found black king at: {position}");
                     black_king_position = position as i8;
                 }
                 pieces.push(None);
             } else {
-                println!(
-                    "Going to generate for {}",
-                    piece_fen_from_value(piece_value)
-                );
                 let moves = self.generate_moves(piece_type, position as i8);
 
                 let piece_fen = piece_fen_from_value(piece_value);
@@ -141,10 +134,8 @@ impl MoveGenerator {
         white_king_position: i8,
         white_moves: &[i8],
     ) {
-        println!("Generating king moves");
         let mut white_king_moves = self.generate_king_moves(black_moves, white_king_position);
         let mut black_king_moves = self.generate_king_moves(white_moves, black_king_position);
-        println!("Generating king moves(2)");
 
         let common_moves: Vec<i8> = white_king_moves
             .iter()
@@ -184,7 +175,6 @@ impl MoveGenerator {
         white_king_position: i8,
         board: &mut Board,
     ) {
-        println!("Starting removing blocked piece moves");
         let mut locked_board_state = self.board_state.lock().unwrap();
 
         let king_position = if locked_board_state.is_white_move() {
@@ -198,6 +188,8 @@ impl MoveGenerator {
 
         let mut player_moves: Vec<i8> = Vec::new();
 
+        let mut is_king_in_check = false;
+
         // Is it possible to brake the loop earlier if king is in check on the next move?
         for board_piece in pieces.iter_mut().flatten() {
             // println!("To piece: {}", board_piece.get_position());
@@ -208,27 +200,36 @@ impl MoveGenerator {
             let piece_value = locked_board_state.get_piece(piece_position);
             let mut invalid_moves = Vec::new();
 
-            println!("Dropping locked_board_state");
             drop(locked_board_state);
 
             if board_piece.is_white() != is_white_move {
                 continue;
             }
 
-            println!("Piece moves: {:?}", board_piece.get_immutable_moves());
+            let piece_moves = board_piece.get_immutable_moves();
+            if !is_king_in_check && piece_moves.contains(&king_position){
+                is_king_in_check = true;
+                //println!("Piece moves: {:?}", board_piece.get_immutable_moves());
+            }
 
-            for move_pos in board_piece.get_immutable_moves() {
-                println!("Moving piece... 212");
+            for move_pos in piece_moves {
                 let _ = board.move_piece(piece_position, move_pos);
-                
+                //println!("Moved to {}", move_pos);
+
                 let state = board.get_state_clone();
 
-                println!("Comece a partir daqui, a bronca eh parece ser o estado em que esta sendo olhado");
-                println!("Calling get_next_moves_attack_to_king");
                 let opponent_next_moves = self.get_next_moves_attack_to_king(king_position, state);
 
+                if get_piece_type(piece_value) == PieceType::King {
+                    // println!(
+                    //     "opponent_next_moves: {:?} king is on {}",
+                    //     opponent_next_moves, piece_position
+                    // );
+                }
+
                 board.undo_move();
-                println!("opponent_next_moves: {:?}", opponent_next_moves);
+                self.board_state = board.get_state_reference().clone();
+
                 if get_piece_type(piece_value) == PieceType::King
                     && opponent_next_moves.contains(&move_pos)
                 {
@@ -253,21 +254,26 @@ impl MoveGenerator {
                 player_moves.extend(board_piece.get_immutable_moves());
             }
         }
-        println!("Acabou???");
+
+        // board.load_state_and_clear_history(self.board_state.clone());
 
         // TODO Check this when returning pieces on Board
         if player_moves.is_empty() {
-            let winner = if is_white_move {
-                PieceColor::Black as i8
-            } else {
-                PieceColor::White as i8
-            };
-
             locked_board_state = self.board_state.lock().unwrap();
 
+            let winner = if is_king_in_check {
+                if is_white_move {
+                    PieceColor::Black as i8
+                } else {
+                    PieceColor::White as i8
+                }
+            } else {
+                PieceColor::Black as i8 | PieceColor::White as i8
+            };
+
+            //println!("Setting winner");
             locked_board_state.set_winner(winner);
         }
-        println!("Acabou");
     }
 
     fn get_next_moves_attack_to_king(&self, king_position: i8, board_state: BoardState) -> Vec<i8> {
@@ -275,11 +281,11 @@ impl MoveGenerator {
 
         // let locked_board_state = board_state.lock().unwrap();
 
-        println!("The state: {:#?}", board_state);
+        // println!("The state: {:#?}", board_state);
 
         let is_white_move = board_state.is_white_move();
 
-        let squares = *board_state.squares();
+        let squares = board_state.squares();
 
         // drop(locked_board_state);
 
@@ -811,3 +817,4 @@ impl MoveGenerator {
         }
     }
 }
+

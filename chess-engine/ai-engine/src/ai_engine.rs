@@ -3,6 +3,7 @@ mod board_wrapper;
 mod common;
 mod game;
 
+use std::env;
 // use ai::random_player::RandomPlayer;
 use board_wrapper::BoardWrapper;
 use pyo3::{exceptions::PyValueError, prelude::*, types::PyList};
@@ -39,7 +40,8 @@ pub fn process_pieces(py_list: &PyAny) -> PyResult<Vec<Piece>> {
 // }
 
 #[pymodule]
-fn ai_engine(_py: Python, m: &PyModule) -> PyResult<()> {
+fn ai_engine(_py: Python, m: &PyModule) -> PyResult<()> {    
+    // env::set_var("RUST_BACKTRACE", "1");
     m.add_class::<Piece>()?;
     m.add_class::<BoardWrapper>()?;
 

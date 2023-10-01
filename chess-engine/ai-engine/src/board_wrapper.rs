@@ -1,10 +1,10 @@
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Mutex, MutexGuard};
 
 use pyo3::{exceptions, prelude::*};
 
 use crate::{
     ai::minimax::MiniMax,
-    common::{contants::INITIAL_FEN, piece::Piece},
+    common::{contants::INITIAL_FEN, piece::Piece, piece_utils::{PieceType, is_white_piece}},
     game::{board::Board, board_state::BoardState, move_generator::MoveGenerator},
 };
 
@@ -47,8 +47,8 @@ impl BoardWrapper {
         }
     }
 
-    pub fn get_ai_move(&mut self) -> (i32, (i8, i8)) {
-        let result = self.mini_max.make_move(&self.board);
+    pub fn get_ai_move(&mut self, depth: u8) -> (i32, (i8, i8)) {
+        let result = self.mini_max.make_move(&self.board, depth);
 
         println!("Evaluated {} states", self.mini_max.states_checked);
 
@@ -56,8 +56,7 @@ impl BoardWrapper {
     }
 
     pub fn get_move_generation_count(&mut self, depth: usize) -> u64 {
-        1
-        // move_generation_count(board, depth)
+        move_generation_count(&mut self.board.lock().unwrap(), depth)
     }
 
     pub fn black_captures_to_fen(&self) -> Vec<String> {
@@ -75,7 +74,7 @@ impl BoardWrapper {
     pub fn get_available_moves(&mut self) -> Vec<Option<Piece>> {
         let mut pieces: Vec<Option<Piece>> = Vec::new();
 
-        println!("Just entered RUST");
+        //println!("Just entered RUST");
 
         for piece in self.board.lock().unwrap().get_pieces().iter().flatten() {
             pieces.push(Some(Piece::new(
@@ -121,29 +120,29 @@ impl BoardWrapper {
     }
 }
 
-fn move_generation_count(mut board: Board, depth: usize) -> u64 {
+fn move_generation_count(board: &mut MutexGuard<'_, Board, >, depth: usize) -> u64 {
     if depth == 0 {
         return 1;
     }
 
-    // let pieces = board.get_pieces();
+    let pieces = board.get_pieces();
     let mut num_positions: u64 = 0;
 
     // get_available_moves should only return the pieces, not empties
-    // for piece in pieces.iter().flatten() {
-    //     for piece_move in piece.get_immutable_moves().iter() {
-    //         if (piece.get_value() == PieceType::Empty as i8) ||
-    //         (is_white_piece(piece.get_value()) != board.is_white_move()){
-    //             continue;
-    //         }
+    for piece in pieces.iter().flatten() {
+        for piece_move in piece.get_immutable_moves().iter() {
+            if (piece.get_value() == PieceType::Empty as i8) ||
+            (is_white_piece(piece.get_value()) != board.is_white_move()){
+                continue;
+            }
 
-    //         let mut temp_board = board.clone();
+            let _ = board.move_piece(piece.get_position(), *piece_move);
 
-    //         let _ = temp_board.move_piece(piece.get_position(), *piece_move);
+            num_positions += move_generation_count(board, depth -1);
 
-    //         num_positions += move_generation_count(temp_board, depth -1);
-    //     }
-    // }
+            board.undo_move();
+        }
+    }
 
     num_positions
 }
