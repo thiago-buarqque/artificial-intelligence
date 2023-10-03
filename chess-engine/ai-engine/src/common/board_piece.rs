@@ -1,14 +1,16 @@
+use super::piece_move::PieceMove;
+
 #[derive(Debug, Clone)]
 pub struct BoardPiece {
     fen: String,
-    moves: Vec<i8>,
+    moves: Vec<PieceMove>,
     position: i8,
     value: i8,
     white: bool,
 }
 
 impl BoardPiece {
-    pub fn new(fen: String, moves: Vec<i8>, position: i8, value: i8, white: bool) -> Self {
+    pub fn new(fen: String, moves: Vec<PieceMove>, position: i8, value: i8, white: bool) -> Self {
         BoardPiece {
             fen,
             moves,
@@ -21,11 +23,11 @@ impl BoardPiece {
     pub fn get_fen(&self) -> String {
         self.fen.clone()
     }
-    pub fn get_moves(&mut self) -> &mut Vec<i8> {
+    pub fn get_moves(&mut self) -> &mut Vec<PieceMove> {
         &mut self.moves
     }
 
-    pub fn get_immutable_moves(&self) -> Vec<i8> {
+    pub fn get_immutable_moves(&self) -> Vec<PieceMove> {
         self.moves.clone()
     }
 

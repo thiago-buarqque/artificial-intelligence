@@ -1,7 +1,10 @@
+import json
+
 from typing import Union
 
-from ai_engine.ai_engine import Piece
+from ai_engine.ai_engine import PieceDTO
 
+from game.dto.BoardMoveDTO import BoardMoveDTO
 from game.dto.DTO import DTO
 
 
@@ -15,8 +18,13 @@ class BoardPieceDTO(DTO):
                       white=white)
 
     @staticmethod
-    def from_piece(board_piece: Piece):
-        fen = None if board_piece.fen == "" else board_piece.fen
+    def from_str_piece(board_piece: str):
+        board_piece = json.loads(board_piece)
+
+        fen = None if board_piece['fen'] == "" else board_piece['fen']
+
+        moves = [BoardMoveDTO.from_str_piece_move(move) for move in board_piece['moves']]
+
         return BoardPieceDTO(
-            fen, board_piece.moves, board_piece.position,
-            board_piece.white)
+            fen, moves, board_piece['position'],
+            board_piece['white'])

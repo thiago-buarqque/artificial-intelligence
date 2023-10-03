@@ -16,11 +16,8 @@ pub struct Board {
 
 impl Board {
     pub fn new(state: Arc<Mutex<BoardState>>) -> Self {
-        // let state = Arc::new(Mutex::new(BoardState::new()));
-
         Board {
             state,
-            // move_generator: None,
             state_history: Vec::new(),
         }
     }
@@ -28,10 +25,6 @@ impl Board {
     pub fn get_state_reference(&self) -> &Arc<Mutex<BoardState>> {
         &self.state
     }
-
-    // pub fn set_move_generator(&mut self, move_generator: Option<MoveGenerator>) {
-    //     self.move_generator = move_generator;
-    // }
 
     fn get_move_generator(&self) -> MoveGenerator {
         MoveGenerator::new(Arc::new(Mutex::new(self.clone())), self.state.clone())
@@ -41,15 +34,6 @@ impl Board {
         let mut move_generator = self.get_move_generator();
 
         move_generator.get_available_moves(self)
-
-        // if let Some(ref mut move_generator) = self.move_generator {
-        //     move_generator.load_state(self.state.clone());
-
-        // }
-
-        // println!("There is not move_generator");
-
-        // Vec::new()
     }
 
     fn place_piece(&mut self, index: i8, piece: i8) {
@@ -98,7 +82,6 @@ impl Board {
     }
 
     pub fn move_piece(&mut self, from_index: i8, to_index: i8) -> Result<(), &'static str> {
-        //println!("Going to move piece: {}->{}", from_index, to_index);
         let state = self.state.lock().unwrap();
 
         self.state_history.push(state.clone());
@@ -127,7 +110,6 @@ impl Board {
         let mut state = self.state.lock().unwrap();
 
         if state.is_valid_position(from_index) && state.is_valid_position(to_index) {
-            //println!("Position is valid");
             let moving_piece = state.get_piece(from_index);
             let replaced_piece = state.get_piece(to_index);
 
@@ -175,7 +157,6 @@ impl Board {
                 state.update_castling_ability(to_index, to_index < 8, to_index % 8 == 7);
             }
 
-            //println!("Moved okay");
             return Ok(());
         }
 

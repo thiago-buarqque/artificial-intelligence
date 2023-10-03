@@ -1,7 +1,7 @@
 use std::sync::{Arc, Mutex};
 
 use crate::{
-    common::piece_utils::{get_piece_worth, is_white_piece, PieceType},
+    common::{piece_utils::{get_piece_worth, is_white_piece, PieceType}, piece_move::PieceMove},
     game::board::Board,
 };
 
@@ -14,7 +14,7 @@ impl MiniMax {
         MiniMax { states_checked: 0 }
     }
 
-    pub fn make_move(&mut self, board: &Arc<Mutex<Board>>, depth: u8) -> (i32, (i8, i8)) {
+    pub fn make_move(&mut self, board: &Arc<Mutex<Board>>, depth: u8) -> (i32, PieceMove) {
         // let mut locked_board = board.lock().unwrap();
         // let mut state = locked_board.get_state_reference().clone();
 
@@ -32,17 +32,17 @@ impl MiniMax {
         // result
     }
 
-    fn minimax(&mut self, board: &Arc<Mutex<Board>>, depth: u8, max: bool) -> (i32, (i8, i8)) {
+    fn minimax(&mut self, board: &Arc<Mutex<Board>>, depth: u8, max: bool) -> (i32, PieceMove) {
         let mut locked_board = board.lock().unwrap();
 
         if depth == 0 || locked_board.is_game_finished() {
             drop(locked_board);
 
-            return (self.get_board_value(board), (-1, -1));
+            return (self.get_board_value(board), PieceMove::new(-1, -1));
         }
 
         let mut value = if max { i32::MIN } else { i32::MAX };
-        let mut best_move: (i8, i8) = (-1, -1);
+        let mut best_move: PieceMove = PieceMove::new(-1, -1);
 
         let pieces = locked_board.get_pieces().clone();
 
@@ -57,7 +57,7 @@ impl MiniMax {
             for piece_move in piece.get_immutable_moves().iter() {
                 // let state = locked_board.get_state_reference().clone();
                 //println!("Ai moving: {}->{}", piece.get_position(), piece_move);
-                let _ = locked_board.move_piece(piece.get_position(), *piece_move);
+                let _ = locked_board.move_piece(piece_move.from, piece_move.to);
 
                 self.states_checked += 1;
 
@@ -68,14 +68,14 @@ impl MiniMax {
 
                     if current_move_value.0 > value {
                         value = current_move_value.0;
-                        best_move = (piece.get_position(), *piece_move);
+                        best_move = piece_move.clone();
                     }
                 } else {
                     let current_move_value = self.minimax(board, depth - 1, true);
 
                     if current_move_value.0 < value {
                         value = current_move_value.0;
-                        best_move = (piece.get_position(), *piece_move);
+                        best_move = piece_move.clone();
                     }
                 }
 
