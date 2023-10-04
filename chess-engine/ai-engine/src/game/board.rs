@@ -2,7 +2,7 @@ use std::sync::{Arc, Mutex};
 
 use crate::common::{
     board_piece::BoardPiece,
-    piece_utils::{get_piece_type, is_piece_of_type, is_white_piece, PieceColor, PieceType},
+    piece_utils::{get_piece_type, is_piece_of_type, is_white_piece, PieceColor, PieceType}, piece_move::PieceMove,
 };
 
 use super::{board_state::BoardState, move_generator::MoveGenerator};
@@ -27,7 +27,7 @@ impl Board {
     }
 
     fn get_move_generator(&self) -> MoveGenerator {
-        MoveGenerator::new(Arc::new(Mutex::new(self.clone())), self.state.clone())
+        MoveGenerator::new(self.state.clone())
     }
 
     pub fn get_pieces(&mut self) -> Vec<Option<BoardPiece>> {
@@ -72,23 +72,19 @@ impl Board {
         }
     }
 
-    pub fn get_pawn_promotion_position(&self) -> i8 {
-        self.state.lock().unwrap().get_pawn_promotion_position()
-    }
+    // pub fn load_state_and_clear_history(&mut self, state: Arc<Mutex<BoardState>>) {
+    //     self.state_history = Vec::new();
+    //     self.state = state;
+    // }
 
-    pub fn load_state_and_clear_history(&mut self, state: Arc<Mutex<BoardState>>) {
-        self.state_history = Vec::new();
-        self.state = state;
-    }
-
-    pub fn move_piece(&mut self, from_index: i8, to_index: i8) -> Result<(), &'static str> {
+    pub fn move_piece(&mut self, piece_move: PieceMove) -> Result<(), &'static str> {
         let state = self.state.lock().unwrap();
 
         self.state_history.push(state.clone());
 
         drop(state);
 
-        self._move_piece(from_index, to_index, false)
+        self._move_piece(piece_move, false)
     }
 
     pub fn undo_move(&mut self) {
@@ -103,14 +99,16 @@ impl Board {
 
     fn _move_piece(
         &mut self,
-        from_index: i8,
-        to_index: i8,
+        piece_move: PieceMove,
         rook_castling: bool,
     ) -> Result<(), &'static str> {
         let mut state = self.state.lock().unwrap();
 
+        let from_index = piece_move.from_position;
+        let to_index = piece_move.to_position;
+
         if state.is_valid_position(from_index) && state.is_valid_position(to_index) {
-            let moving_piece = state.get_piece(from_index);
+            let mut moving_piece = state.get_piece(from_index);
             let replaced_piece = state.get_piece(to_index);
 
             drop(state);
@@ -122,6 +120,14 @@ impl Board {
 
             if self.is_en_passant_capture(moving_piece, to_index) {
                 self.capture_en_passant(moving_piece);
+            } else if piece_move.is_promotion {
+                println!("Is promoting: {}->{}", moving_piece, piece_move.promotion_type);
+                
+                if piece_move.promotion_type == 0 {
+                    return Err("Pawn needs promotion type.");
+                }
+                
+                moving_piece = piece_move.promotion_type;
             } else if moving_piece == (PieceColor::White as i8 | PieceType::King as i8)
                 || moving_piece == (PieceColor::Black as i8 | PieceType::King as i8)
             {
@@ -217,9 +223,9 @@ impl Board {
             state.set_black_able_to_king_side_castle(false);
         }
 
-        drop(state);
+        drop(state);        
 
-        self._move_piece(rook_position, new_rook_position, true)
+        self._move_piece(PieceMove::new(rook_position, new_rook_position), true)
     }
 
     fn capture_en_passant(&mut self, moving_piece: i8) {
@@ -294,11 +300,11 @@ impl Board {
         self.state = Arc::new(Mutex::new(state));
     }
 
-    pub fn black_captures_to_fen(&self) -> Vec<String> {
+    pub fn black_captures_to_fen(&self) -> Vec<char> {
         self.state.lock().unwrap().black_captures_to_fen()
     }
 
-    pub fn white_captures_to_fen(&self) -> Vec<String> {
+    pub fn white_captures_to_fen(&self) -> Vec<char> {
         self.state.lock().unwrap().white_captures_to_fen()
     }
 

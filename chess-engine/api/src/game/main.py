@@ -6,9 +6,10 @@ from flask import request
 
 from flask_app import app, to_json_response
 
-from ai_engine.ai_engine import BoardWrapper
+from ai_engine.ai_engine import BoardWrapper, PieceMoveDTO
 
 from game.dto.BoardDTO import BoardDTO
+from game.dto.MoveDTO import MoveDTO
 
 module_path = os.path.abspath(os.path.join("../../"))
 
@@ -39,10 +40,7 @@ def get_move_count():
 
 @app.route('/board/move/piece', methods=['POST'])
 def move_piece():
-    from_index = request.json["from"]
-    to_index = request.json["to"]
-
-    board.move_piece(from_index, to_index)
+    board.move_piece(MoveDTO.from_dict_piece_moveDTO(request.json))
 
     # Pure minimax on (depth: 4)
     # FEN: r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq -
@@ -51,17 +49,21 @@ def move_piece():
     # 330, (0, 1)
 
     # Ai move
-    if board.get_winner_fen() == "-":
-        start = time.time()
-        move_value, destination = \
-            board.get_ai_move(1)
-
-        end = time.time()
-        print(f"Elapsed time: {(end - start) * 1000}")
-        print(f"{move_value}, ({destination[0]}, {destination[1]})")
-
-        if destination[0] != -1 and destination[1] != -1:
-            board.move_piece(destination[0], destination[1])
+    # if board.get_winner_fen() == "-":
+    #     start = time.time()
+    #     move_value, move = \
+    #         board.get_ai_move(4)
+    #
+    #     # Evaluated 10191929states
+    #     # Elapsed time: 15598.281860351562
+    #     # 0, (1, 16)
+    #     end = time.time()
+    #     print(f"Elapsed time: {(end - start) * 1000}")
+    #     print(f"{move_value}, "
+    #           f"({move.from_position}, {move.to_position})")
+    #
+    #     if move.from_position != -1 and move.to_position != -1:
+    #         board.move_piece(move)
 
     return get_board()
 

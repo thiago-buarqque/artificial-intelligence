@@ -2,7 +2,7 @@ use super::piece_move::PieceMove;
 
 #[derive(Debug, Clone)]
 pub struct BoardPiece {
-    fen: String,
+    fen: char,
     moves: Vec<PieceMove>,
     position: i8,
     value: i8,
@@ -10,7 +10,7 @@ pub struct BoardPiece {
 }
 
 impl BoardPiece {
-    pub fn new(fen: String, moves: Vec<PieceMove>, position: i8, value: i8, white: bool) -> Self {
+    pub fn new(fen: char, moves: Vec<PieceMove>, position: i8, value: i8, white: bool) -> Self {
         BoardPiece {
             fen,
             moves,
@@ -20,8 +20,8 @@ impl BoardPiece {
         }
     }
 
-    pub fn get_fen(&self) -> String {
-        self.fen.clone()
+    pub fn get_fen(&self) -> char {
+        self.fen
     }
     pub fn get_moves(&mut self) -> &mut Vec<PieceMove> {
         &mut self.moves

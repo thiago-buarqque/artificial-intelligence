@@ -1,7 +1,8 @@
-use std::sync::{Arc, Mutex};
-
 use crate::{
-    common::{piece_utils::{get_piece_worth, is_white_piece, PieceType}, piece_move::PieceMove},
+    common::{
+        piece_move::PieceMove,
+        piece_utils::{get_piece_worth, is_white_piece, PieceType, get_promotion_char_options, piece_value_from_fen, piece_fen_from_value},
+    },
     game::board::Board,
 };
 
@@ -14,87 +15,75 @@ impl MiniMax {
         MiniMax { states_checked: 0 }
     }
 
-    pub fn make_move(&mut self, board: &Arc<Mutex<Board>>, depth: u8) -> (i32, PieceMove) {
-        // let mut locked_board = board.lock().unwrap();
-        // let mut state = locked_board.get_state_reference().clone();
-
-        //println!("Original state: {:#?}", state);
-
-        // drop(locked_board);
+    pub fn make_move(&mut self, board: &mut Board, depth: u8) -> (i32, PieceMove) {
+        self.states_checked = 0;
 
         self.minimax(board, depth, true)
-
-        // locked_board = board.lock().unwrap();
-        // state = locked_board.get_state_reference().clone();
-        //println!("Last state: {:#?}", state);
-        // locked_board.load_state_and_clear_history(state);
-
-        // result
     }
 
-    fn minimax(&mut self, board: &Arc<Mutex<Board>>, depth: u8, max: bool) -> (i32, PieceMove) {
-        let mut locked_board = board.lock().unwrap();
+    fn minimax(&mut self, board: &mut Board, depth: u8, max: bool) -> (i32, PieceMove) {
+        self.states_checked += 1;
 
-        if depth == 0 || locked_board.is_game_finished() {
-            drop(locked_board);
-
+        if depth == 0 || board.is_game_finished() {
             return (self.get_board_value(board), PieceMove::new(-1, -1));
         }
 
         let mut value = if max { i32::MIN } else { i32::MAX };
         let mut best_move: PieceMove = PieceMove::new(-1, -1);
 
-        let pieces = locked_board.get_pieces().clone();
+        let pieces = board.get_pieces().clone();
 
         // get_available_moves should only return the pieces, not empties
         for piece in pieces.iter().flatten() {
             if (piece.get_value() == PieceType::Empty as i8)
-                || (is_white_piece(piece.get_value()) != locked_board.is_white_move())
+                || (piece.is_white()) != board.is_white_move()
             {
                 continue;
             }
 
             for piece_move in piece.get_immutable_moves().iter() {
-                // let state = locked_board.get_state_reference().clone();
-                //println!("Ai moving: {}->{}", piece.get_position(), piece_move);
-                let _ = locked_board.move_piece(piece_move.from, piece_move.to);
+                let mut promotion_char_options = vec![piece_fen_from_value(piece_move.promotion_type)];
 
-                self.states_checked += 1;
-
-                drop(locked_board);
-
-                if max {
-                    let current_move_value = self.minimax(board, depth - 1, false);
-
-                    if current_move_value.0 > value {
-                        value = current_move_value.0;
-                        best_move = piece_move.clone();
-                    }
-                } else {
-                    let current_move_value = self.minimax(board, depth - 1, true);
-
-                    if current_move_value.0 < value {
-                        value = current_move_value.0;
-                        best_move = piece_move.clone();
-                    }
+                if piece_move.is_promotion {
+                    promotion_char_options = get_promotion_char_options(piece.is_white());
                 }
 
-                locked_board = board.lock().unwrap();
+                let mut piece_move = piece_move.clone();
 
-                locked_board.undo_move();
-                // locked_board.load_state_and_clear_history(state);
+                for promotion_option in promotion_char_options {
+                    piece_move.promotion_type = piece_value_from_fen(&promotion_option);
+
+                    let _ = board.move_piece(piece_move.clone());
+
+                    if max {
+                        let current_move_value = self.minimax(board, depth - 1, false);
+
+                        if current_move_value.0 > value {
+                            value = current_move_value.0;
+                            best_move = piece_move.clone();
+                        }
+                    } else {
+                        let current_move_value = self.minimax(board, depth - 1, true);
+
+                        if current_move_value.0 < value {
+                            value = current_move_value.0;
+                            best_move = piece_move.clone();
+                        }
+                    }
+
+                    board.undo_move();
+                }
             }
         }
 
         (value, best_move)
     }
 
-    fn get_board_value(&self, board: &Arc<Mutex<Board>>) -> i32 {
-        // For this first algorithm version the sum of the pieces will give the board value
-        let locked_board = board.lock().unwrap();
-
+    fn get_board_value(&self, board: &mut Board) -> i32 {
+        // For this first algorithm version the
+        // sum of the pieces will give the state value
         let mut board_value = 0;
-        for piece in locked_board.get_squares().iter() {
+        for piece in board.get_squares().iter() {
             if *piece == PieceType::Empty as i8 {
                 continue;
             }

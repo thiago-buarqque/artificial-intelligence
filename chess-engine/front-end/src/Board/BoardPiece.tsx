@@ -13,7 +13,7 @@ import QueenWhite from "../assets/queen-white.svg";
 import RookBlack from "../assets/rook-black.svg";
 import RookWhite from "../assets/rook-white.svg";
 
-import { TBoardPiece} from "./types";
+import { TPiece} from "./types";
 
 export const PIECE_ICONS: {
   [key: string]: string;
@@ -33,8 +33,8 @@ export const PIECE_ICONS: {
 };
 
 interface IProps {
-  boardPiece: TBoardPiece;
-  onClick: (position: TBoardPiece) => void;
+  boardPiece: TPiece;
+  onClick: (position: TPiece) => void;
 }
 
 const BoardPiece: React.FC<IProps> = ({ boardPiece, onClick }) => {

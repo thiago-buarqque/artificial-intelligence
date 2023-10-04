@@ -32,7 +32,7 @@ pub enum PieceColor {
 // .copied()
 // .collect();
 
-pub fn pieces_to_fen(pieces: &[i8]) -> Vec<String> {
+pub fn pieces_to_fen(pieces: &[i8]) -> Vec<char> {
     pieces
         .iter()
         .map(|&piece| piece_fen_from_value(piece))
@@ -63,23 +63,29 @@ pub fn piece_value_from_fen(piece_fen: &char) -> i8 {
     (color as i8) | (piece_type as i8)
 }
 
-pub fn piece_fen_from_value(piece_value: i8) -> String {
-    String::from(match piece_value {
-        0 => "-",
-        17 => "B",
-        18 => "K",
-        19 => "N",
-        20 => "P",
-        21 => "Q",
-        22 => "R",
-        9 => "b",
-        10 => "k",
-        11 => "n",
-        12 => "p",
-        13 => "q",
-        14 => "r",
-        _ => "",
-    })
+pub fn piece_fen_from_value(piece_value: i8) -> char {
+    match piece_value {
+        17 => 'B',
+        18 => 'K',
+        19 => 'N',
+        20 => 'P',
+        21 => 'Q',
+        22 => 'R',
+        9 => 'b',
+        10 => 'k',
+        11 => 'n',
+        12 => 'p',
+        13 => 'q',
+        14 => 'r',
+        _ => '-',
+    }
+}
+
+pub fn get_promotion_char_options(white: bool) -> Vec<char> {
+    if white {
+        return vec!['q', 'r', 'b', 'n'];
+    }
+    vec!['Q', 'R', 'B', 'N']
 }
 
 pub fn get_piece_type(piece_value: i8) -> PieceType {

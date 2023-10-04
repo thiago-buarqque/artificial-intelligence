@@ -1,14 +1,11 @@
-use std::{
-    cell::RefCell,
-    rc::Rc,
-    sync::{Arc, Mutex, MutexGuard},
-};
+use std::sync::{Arc, Mutex};
 
 use crate::common::{
     board_piece::BoardPiece,
+    piece_move::PieceMove,
     piece_utils::{
         get_piece_type, is_same_color, is_white_piece, piece_fen_from_value, PieceColor, PieceType,
-    }, piece_move::PieceMove,
+    },
 };
 
 use super::{board::Board, board_state::BoardState};
@@ -34,12 +31,11 @@ impl SquareOffset {
 #[derive(Debug, Clone)]
 pub struct MoveGenerator {
     board_state: Arc<Mutex<BoardState>>,
-    board: Arc<Mutex<Board>>,
 }
 
 impl MoveGenerator {
-    pub fn new(board: Arc<Mutex<Board>>, board_state: Arc<Mutex<BoardState>>) -> Self {
-        Self { board, board_state }
+    pub fn new(board_state: Arc<Mutex<BoardState>>) -> Self {
+        Self { board_state }
     }
 
     fn generate_moves(&self, piece_type: PieceType, position: i8) -> Vec<PieceMove> {
@@ -55,9 +51,9 @@ impl MoveGenerator {
         }
     }
 
-    pub fn load_state(&mut self, state: Arc<Mutex<BoardState>>) {
-        self.board_state = state;
-    }
+    // pub fn load_state(&mut self, state: Arc<Mutex<BoardState>>) {
+    //     self.board_state = state;
+    // }
 
     pub fn get_available_moves(&mut self, board: &mut Board) -> Vec<Option<BoardPiece>> {
         let mut black_moves: Vec<PieceMove> = Vec::new();
@@ -67,13 +63,22 @@ impl MoveGenerator {
         let mut white_king_position: i8 = -1;
         let mut black_king_position: i8 = -1;
 
-        let squares_guard = self.board_state.lock().unwrap();
+        let board_state_clone = board.get_state_clone();
 
-        let board_squares = squares_guard.clone();
+        let squares = board_state_clone.squares();
 
-        drop(squares_guard);
+        for (position, &piece_value) in squares.iter().enumerate() {
+            if piece_value == PieceType::Empty as i8 {
+                pieces.push(Some(BoardPiece::new(
+                    '-',
+                    Vec::new(),
+                    position as i8,
+                    piece_value,
+                    false,
+                )));
+                continue;
+            }
 
-        for (position, &piece_value) in board_squares.squares().iter().enumerate() {
             let white_piece = is_white_piece(piece_value);
             let piece_type = get_piece_type(piece_value);
 
@@ -83,7 +88,13 @@ impl MoveGenerator {
                 } else {
                     black_king_position = position as i8;
                 }
-                pieces.push(None);
+                pieces.push(Some(BoardPiece::new(
+                    piece_fen_from_value(piece_value),
+                    Vec::new(),
+                    position as i8,
+                    piece_value,
+                    white_piece,
+                )));
             } else {
                 let moves = self.generate_moves(piece_type, position as i8);
 
@@ -106,20 +117,28 @@ impl MoveGenerator {
             }
         }
 
-        self.get_king_available_moves(
-            black_king_position,
-            &black_moves,
-            &mut pieces,
-            white_king_position,
-            &white_moves,
-        );
+        // Only the two kings on the board
+        if black_moves.is_empty() && white_moves.is_empty() {
+            let mut board_state = self.board_state.lock().unwrap();
 
-        self.remove_blocked_piece_moves(
-            &mut pieces,
-            black_king_position,
-            white_king_position,
-            board,
-        );
+            // Game ends in draw
+            board_state.set_winner(PieceColor::Black as i8 | PieceColor::White as i8);
+        } else {
+            self.get_king_available_moves(
+                black_king_position,
+                &black_moves,
+                &mut pieces,
+                white_king_position,
+                &white_moves,
+            );
+
+            self.remove_blocked_piece_moves(
+                &mut pieces,
+                black_king_position,
+                white_king_position,
+                board,
+            );
+        }
 
         pieces
     }
@@ -138,7 +157,7 @@ impl MoveGenerator {
         let common_moves: Vec<PieceMove> = white_king_moves
             .iter()
             .cloned()
-            .filter(|x| black_king_moves.contains(&x))
+            .filter(|x| black_king_moves.contains(x))
             .collect();
 
         white_king_moves.retain(|x| !common_moves.contains(x));
@@ -162,8 +181,13 @@ impl MoveGenerator {
             false,
         );
 
-        board_pieces[white_king_position as usize] = Some(white_king_piece);
-        board_pieces[black_king_position as usize] = Some(black_king_piece);
+        if white_king_position != -1 {
+            board_pieces[white_king_position as usize] = Some(white_king_piece);
+        }
+
+        if black_king_position != -1 {
+            board_pieces[black_king_position as usize] = Some(black_king_piece);
+        }
     }
 
     pub fn remove_blocked_piece_moves(
@@ -205,50 +229,71 @@ impl MoveGenerator {
             }
 
             let piece_moves = board_piece.get_immutable_moves();
-            if !is_king_in_check && 
-                piece_moves.iter().any(|_move| _move.to == king_position){
 
+            if !is_king_in_check
+                && piece_moves
+                    .iter()
+                    .any(|_move| _move.to_position == king_position)
+            {
                 is_king_in_check = true;
-                //println!("Piece moves: {:?}", board_piece.get_immutable_moves());
             }
 
-            for move_pos in piece_moves {
-                let _ = board.move_piece(piece_position, move_pos.to);
-                //println!("Moved to {}", move_pos);
+            for piece_move in piece_moves {
+                if get_piece_type(piece_value) == PieceType::King {
+                    let _ = board.move_piece(piece_move.clone());
+    
+                    let state = board.get_state_clone();
+                    let opponent_next_moves =
+                        self.get_next_moves_attack_to_king(piece_move.to_position, state);
+                        
+                    board.undo_move();
+                    
+                    self.board_state = board.get_state_reference().clone();
+                        
+                    println!(
+                        "{} Opponent attack for king: {:?}",
+                        piece_move.from_position, opponent_next_moves
+                    );
+                    if opponent_next_moves
+                        .iter()
+                        .any(|_move| _move.to_position == piece_move.to_position)
+                    {
+                        println!("Invalidating {:?}", piece_move);
+                        invalid_moves.push(piece_move);
+                    }
+
+                    continue;
+                }
+                let mut piece_move_clone = piece_move.clone();
+
+                if piece_move_clone.is_promotion && piece_move.promotion_type == PieceType::Empty as i8{
+                    piece_move_clone.promotion_type = piece_value
+                }
+
+                let _ = board.move_piece(piece_move_clone.clone());
 
                 let state = board.get_state_clone();
+                // TODO I should probably care if the pawn is being promoted?
+                let opponent_next_moves = 
+                    self.get_next_moves_attack_to_king(king_position, state);
 
-                let opponent_next_moves = self.get_next_moves_attack_to_king(king_position, state);
-
-                if get_piece_type(piece_value) == PieceType::King {
-                    // println!(
-                    //     "opponent_next_moves: {:?} king is on {}",
-                    //     opponent_next_moves, piece_position
-                    // );
-                }
 
                 board.undo_move();
+
                 self.board_state = board.get_state_reference().clone();
 
-                if get_piece_type(piece_value) == PieceType::King
-                    && opponent_next_moves.iter().any(|_move| _move.to ==move_pos.to)
+                if opponent_next_moves
+                    .iter()
+                    .any(|_move| _move.to_position == king_position)
                 {
-                    invalid_moves.push(move_pos);
-                    continue;
-                }
-
-                if get_piece_type(piece_value) == PieceType::King {
-                    continue;
-                }
-
-                if opponent_next_moves.iter().any(|_move| _move.to == king_position){
-                    invalid_moves.push(move_pos);
+                    println!("Invalidating move: {:?}", piece_move.clone());
+                    invalid_moves.push(piece_move);
                 }
             }
 
             board_piece
                 .get_moves()
-                .retain(|x| !invalid_moves.contains(&x));
+                .retain(|x| !invalid_moves.contains(x));
 
             if is_white_piece(piece_value) == is_white_move {
                 player_moves.extend(board_piece.get_immutable_moves());
@@ -275,21 +320,19 @@ impl MoveGenerator {
         }
     }
 
-    fn get_next_moves_attack_to_king(&self, king_position: i8, board_state: BoardState) -> Vec<PieceMove> {
+    fn get_next_moves_attack_to_king(
+        &self,
+        king_position: i8,
+        board_state: BoardState,
+    ) -> Vec<PieceMove> {
         let mut all_moves: Vec<PieceMove> = Vec::new();
-
-        // let locked_board_state = board_state.lock().unwrap();
-
-        // println!("The state: {:#?}", board_state);
 
         let is_white_move = board_state.is_white_move();
 
         let squares = board_state.squares();
 
-        // drop(locked_board_state);
-
         for (position, &piece) in squares.iter().enumerate() {
-            if is_white_piece(piece) != is_white_move {
+            if (piece == (PieceType::Empty as i8)) || is_white_piece(piece) != is_white_move {
                 continue;
             }
 
@@ -304,28 +347,25 @@ impl MoveGenerator {
                 //
                 // If the king is being attacked, we're abre to break the loop, no need
                 // to check all piece in the board
-                all_moves.extend(moves);
+                if moves.iter().any(|_move| _move.to_position == king_position) {
+                    println!("Attacking king from {} to {}", position, king_position);
+                    return moves;
+                }
 
-                // if all_moves.contains(&king_position) {
-                //     return all_moves;
-                // }
+                all_moves.extend(moves);
             } else {
                 let opponent_moves: Vec<PieceMove> = Vec::new();
                 // generates the current player king possible moves, even if they're invalid.
                 // This is just to prevent kings to be aside with each other
+
+                // This probably should know all opponents attack
                 let moves = self.generate_king_moves(&opponent_moves, position as i8);
 
-                // Note for future me:
-                // I can't declare moves before the if and use after the else. It is
-                // moved for its declaration and can't be borrowed after the else. WHY???
-                //
-                // If the king is being attacked, we're abre to break the loop, no need
-                // to check all piece in the board
-                all_moves.extend(moves);
+                if moves.iter().any(|_move| _move.to_position == king_position) {
+                    return moves;
+                }
 
-                // if all_moves.contains(&king_position) {
-                //     return all_moves;
-                // }
+                all_moves.extend(moves);
             }
         }
 
@@ -410,7 +450,11 @@ impl MoveGenerator {
         new_position
     }
 
-    pub fn generate_king_moves(&self, opponent_moves: &[PieceMove], king_position: i8) -> Vec<PieceMove> {
+    pub fn generate_king_moves(
+        &self,
+        opponent_moves: &[PieceMove],
+        king_position: i8,
+    ) -> Vec<PieceMove> {
         let positions = [
             self.get_king_move(king_position, king_position - 1),
             self.get_king_move(king_position, king_position + 1),
@@ -435,7 +479,10 @@ impl MoveGenerator {
             }
 
             // Refactor, if it's not a pawn attacking it's wasting time
-            if opponent_moves.iter().any(|_move| _move.to == position) {
+            if opponent_moves
+                .iter()
+                .any(|_move| _move.to_position == position)
+            {
                 // Is a pawn straight attacking the position?
                 let mut possible_pawn = board_state.get_piece(position + pawn_offset);
 
@@ -466,7 +513,10 @@ impl MoveGenerator {
 
         drop(board_state);
 
-        if !opponent_moves.iter().any(|_move| _move.to == king_position) {
+        if !opponent_moves
+            .iter()
+            .any(|_move| _move.to_position == king_position)
+        {
             self.generate_castle_moves(king, &mut moves, opponent_moves, king_position);
         }
 
@@ -489,7 +539,7 @@ impl MoveGenerator {
     }
 
     fn position_is_not_attacked(&self, n: i8, opponent_moves: &[PieceMove]) -> bool {
-        !opponent_moves.iter().any(|_mut| _mut.to == n)
+        !opponent_moves.iter().any(|_mut| _mut.to_position == n)
     }
 
     fn is_able_to_castle_queen_side(&self, white_king: bool) -> bool {
@@ -620,7 +670,7 @@ impl MoveGenerator {
                 break;
             }
 
-            let new_position = position + ((i + 1) as i8 * offset.value());            
+            let new_position = position + ((i + 1) as i8 * offset.value());
 
             if !board_state.is_valid_position(new_position) {
                 break;
@@ -699,19 +749,22 @@ impl MoveGenerator {
         if existing_piece == PieceType::Empty as i8 {
             moves.push(PieceMove::new(position, next_line_position));
 
-            if self.is_pawn_first_move(white_piece, position)
-                && get_piece_type(board_state.get_piece(position + offset)) == PieceType::Empty
-            {
+            if self.is_pawn_first_move(white_piece, position) {
                 let two_lines_position = position + (offset * 2);
-    
+
                 let existing_piece = board_state.get_piece(two_lines_position);
-    
+
                 if existing_piece == PieceType::Empty as i8 {
                     moves.push(PieceMove::new(position, two_lines_position));
                 }
+            } else if (0..=7).contains(&next_line_position)
+                || (56..=63).contains(&next_line_position)
+            {
+                let last_index_pos = moves.len() - 1;
+
+                moves[last_index_pos].set_is_promotion(true);
             }
         }
-
     }
 
     fn is_pawn_first_move(&self, white_piece: bool, piece_position: i8) -> bool {
@@ -749,6 +802,12 @@ impl MoveGenerator {
             && is_white_piece(existing_piece) != white_piece
         {
             moves.push(PieceMove::new(position, diagonal));
+
+            if (0..=7).contains(&next_line_position) || (56..=63).contains(&next_line_position) {
+                let last_index_pos = moves.len() - 1;
+
+                moves[last_index_pos].set_is_promotion(true);
+            }
         }
     }
 
@@ -827,4 +886,3 @@ impl MoveGenerator {
         }
     }
 }
-

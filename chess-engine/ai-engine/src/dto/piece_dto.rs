@@ -1,15 +1,14 @@
 use pyo3::prelude::*;
-use serde_json::json;
 
 use crate::common::piece_move::PieceMove;
 
-use super::piece_move_dto::PieceMoveDTO;
+use super::{piece_move_dto::PieceMoveDTO, dto_utils::piece_move_dto_from_piece_move};
 
 #[pyclass]
 #[derive(Debug, Clone)]
 pub struct PieceDTO {
     #[pyo3(get, set)]
-    pub fen: String,
+    pub fen: char,
     #[pyo3(get, set)]
     pub moves: Vec<PieceMoveDTO>,
     #[pyo3(get, set)]
@@ -19,25 +18,15 @@ pub struct PieceDTO {
 }
 
 impl PieceDTO {
-    pub fn new(fen: String, moves: Vec<PieceMove>, position: i8, white: bool) -> Self {
+    pub fn new(fen: char, moves: Vec<PieceMove>, position: i8, white: bool) -> Self {
         PieceDTO {
             fen,
             moves: moves.iter().map(
-                |_move| PieceMoveDTO::from_piece_move(_move.clone())
+                |_move| piece_move_dto_from_piece_move(_move.clone())
             ).collect(),
             position,
             white,
         }
     }
 
-    pub fn to_json_str(&self) -> String {
-        json!({
-            "fen": self.fen,
-            "moves": json!(self.moves.iter().map(
-                |_move| _move.to_json_str()
-            ).collect::<Vec<_>>()),
-            "position": self.position,
-            "white": self.white
-        }).to_string()
-    }
 }

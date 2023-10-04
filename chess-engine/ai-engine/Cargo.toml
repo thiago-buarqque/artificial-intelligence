@@ -9,7 +9,13 @@ name = "ai_engine"
 crate-type = ["cdylib"]
 path = "src/ai_engine.rs"
 
+# [profile.release]
+# strip = true
+# opt-level = 'z'
+# lto = true
+# codegen-units = 1
+# panic = "abort"
+
 [dependencies]
 pyo3 = { version = "0.19.0", features = ["extension-module"] }
 rand = "0.8.5"
-serde_json = "1.0.107"

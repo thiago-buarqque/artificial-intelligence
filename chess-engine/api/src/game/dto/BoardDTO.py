@@ -1,5 +1,3 @@
-import json
-
 from ai_engine import BoardWrapper
 
 from game.dto.BoardPieceDTO import BoardPieceDTO
@@ -12,9 +10,8 @@ class BoardDTO(DTO):
 
         dict.__init__(self,
                       blackCaptures=board.black_captures_to_fen(),
-                      pieces=[BoardPieceDTO.from_str_piece(piece) for piece in pieces],
+                      pieces=[BoardPieceDTO.from_pieceDTO(piece) for piece in pieces],
                       whiteCaptures=board.white_captures_to_fen(),
-                      winner=board.get_winner_fen(),
                       whiteMove=board.is_white_move(),
-                      pawn_promotion=board.get_pawn_promotion_position()
+                      winner=board.get_winner_fen(),
                       )

@@ -1,22 +1,29 @@
 export type TBoard = {
   blackCaptures: string[];
-  pieces: TBoardPiece[];
+  pieces: TPiece[];
   whiteCaptures: string[];
   whiteMove: boolean;
-  winner: "-" | "b" | "w" | "bw"
+  winner: "-" | "b" | "w" | "bw";
 };
 
-export type TBoardPiece = {
-  white: boolean;
-  moves: number[];
-  position: number;
+export type TPiece = {
   fen: string | null;
-  // Add castle/check/blocked info?
+  moves: TMove[];
+  position: number;
+  white: boolean;
+};
+
+export type TMove = {
+  fromPosition: number;
+  isEnPassant: boolean;
+  promotionType: string;
+  isPromotion: boolean;
+  toPosition: number;
 };
 
 export enum TPieceColor {
   Black = 8,
-  White = 16
+  White = 16,
 }
 
 export enum TPieceType {
@@ -26,5 +33,5 @@ export enum TPieceType {
   Knight = 3,
   Pawn = 4,
   Queen = 5,
-  Rook = 6
+  Rook = 6,
 }

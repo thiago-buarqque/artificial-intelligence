@@ -1,4 +1,4 @@
-use crate::common::piece_utils::{piece_value_from_fen, pieces_to_fen, get_piece_type, PieceType};
+use crate::common::piece_utils::{piece_value_from_fen, pieces_to_fen};
 
 #[derive(Debug, Clone)]
 pub struct BoardState {
@@ -10,7 +10,6 @@ pub struct BoardState {
     full_moves: i8,
     half_moves: i8,
     is_white_move: bool,
-    pawn_promotion_position: i8,
     squares: [i8; 64],
     white_able_to_king_side_castle: bool,
     white_able_to_queen_side_castle: bool,
@@ -31,7 +30,6 @@ impl BoardState {
             full_moves: 0,
             half_moves: 0,
             is_white_move: true,
-            pawn_promotion_position: -1,
             squares: [0; 64],
             white_able_to_king_side_castle: true,
             white_able_to_queen_side_castle: true,
@@ -52,7 +50,6 @@ impl BoardState {
             full_moves: self.full_moves,
             half_moves: self.half_moves,
             is_white_move: self.is_white_move,
-            pawn_promotion_position: self.pawn_promotion_position,
             squares: self.squares,
             white_able_to_king_side_castle: self.white_able_to_king_side_castle,
             white_able_to_queen_side_castle: self.white_able_to_queen_side_castle,
@@ -63,11 +60,11 @@ impl BoardState {
         }
     }
 
-    pub fn white_captures_to_fen(&self) -> Vec<String> {
+    pub fn white_captures_to_fen(&self) -> Vec<char> {
         pieces_to_fen(&self.white_captures)
     }
 
-    pub fn black_captures_to_fen(&self) -> Vec<String> {
+    pub fn black_captures_to_fen(&self) -> Vec<char> {
         pieces_to_fen(&self.black_captures)
     }
 
@@ -80,9 +77,6 @@ impl BoardState {
     }
 
     pub fn place_piece(&mut self, index: i8, piece: i8) {
-        if get_piece_type(self.get_piece(index)) == PieceType::King {
-            println!("Someone is replacing the king")
-        }
         self.squares[index as usize] = piece;
     }
 
@@ -205,9 +199,9 @@ impl BoardState {
         self.black_able_to_queen_side_castle
     }
 
-    pub fn black_captures(&self) -> &Vec<i8> {
-        &self.black_captures
-    }
+    // pub fn black_captures(&self) -> &Vec<i8> {
+    //     &self.black_captures
+    // }
 
     pub fn black_en_passant(&self) -> i8 {
         self.black_en_passant
@@ -217,13 +211,13 @@ impl BoardState {
         self.black_king_moved
     }
 
-    pub fn full_moves(&self) -> i8 {
-        self.full_moves
-    }
+    // pub fn full_moves(&self) -> i8 {
+    //     self.full_moves
+    // }
 
-    pub fn half_moves(&self) -> i8 {
-        self.half_moves
-    }
+    // pub fn half_moves(&self) -> i8 {
+    //     self.half_moves
+    // }
 
     pub fn is_white_move(&self) -> bool {
         self.is_white_move
@@ -231,10 +225,6 @@ impl BoardState {
 
     pub fn squares(&self) -> &[i8; 64] {
         &self.squares
-    }
-
-    pub fn get_pawn_promotion_position(&self) -> i8 {
-        self.pawn_promotion_position
     }
 
     pub fn white_able_to_king_side_castle(&self) -> bool {
@@ -245,9 +235,9 @@ impl BoardState {
         self.white_able_to_queen_side_castle
     }
 
-    pub fn white_captures(&self) -> &Vec<i8> {
-        &self.white_captures
-    }
+    // pub fn white_captures(&self) -> &Vec<i8> {
+    //     &self.white_captures
+    // }
 
     pub fn white_en_passant(&self) -> i8 {
         self.white_en_passant
@@ -300,10 +290,6 @@ impl BoardState {
 
     pub fn set_white_able_to_king_side_castle(&mut self, value: bool) {
         self.white_able_to_king_side_castle = value;
-    }
-
-    pub fn set_pawn_promotion_position(&mut self, pawn_promotion_position: i8) {
-        self.pawn_promotion_position = pawn_promotion_position
     }
 
     pub fn set_white_able_to_queen_side_castle(&mut self, value: bool) {

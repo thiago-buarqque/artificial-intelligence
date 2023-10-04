@@ -1,7 +1,7 @@
 import React, { MouseEventHandler, useEffect, useRef, useState } from "react";
 
 import BoardPiece, { PIECE_ICONS } from "./BoardPiece";
-import { TBoard, TBoardPiece } from "./types";
+import { TBoard, TMove, TPiece, TPieceColor, TPieceType } from "./types";
 
 //@ts-ignore
 import captureAudio from "../assets/sound/capture.mp3";
@@ -25,15 +25,15 @@ const COLUMNS: { [key: number]: string } = {
   7: "H",
 };
 
-const EMPTY_PIECE: TBoardPiece = {
+const EMPTY_PIECE: TPiece = {
   moves: [],
   position: -1,
   fen: null,
-  white: false
+  white: false,
 };
 
 const get_empty_piece = (position: number) => {
-  const piece: TBoardPiece = JSON.parse(JSON.stringify(EMPTY_PIECE));
+  const piece: TPiece = JSON.parse(JSON.stringify(EMPTY_PIECE));
   piece.position = position;
 
   return piece;
@@ -50,12 +50,12 @@ const playMoveAudio = (capture: boolean) => {
   audio.play();
 };
 
-const notAnAvailableMove = (availableMoves: number[], position: number) => {
-  return availableMoves.find((move) => move === position) === undefined;
-}
+const notAnAvailableMove = (availableMoves: TMove[], position: number) => {
+  return availableMoves.find((move) => move.toPosition === position);
+};
 
 const Board = () => {
-  const [selectedPiece, setSelectedPiece] = useState<TBoardPiece | null>(null);
+  const [selectedPiece, setSelectedPiece] = useState<TPiece | null>(null);
   const [board, setBoard] = useState<TBoard>({
     blackCaptures: [],
     whiteCaptures: [],
@@ -64,8 +64,8 @@ const Board = () => {
     winner: "-",
   });
 
-  const onPieceSelect = (piece: TBoardPiece) => {
-    if(board.whiteMove !== piece.white) {
+  const onPieceSelect = (piece: TPiece) => {
+    if (board.whiteMove !== piece.white) {
       // Play invalid move sound
       return;
     }
@@ -81,17 +81,18 @@ const Board = () => {
     togglePieceAvailableMoves(piece);
   };
 
-  const togglePieceAvailableMoves = (piece: TBoardPiece) => {
+  const togglePieceAvailableMoves = (piece: TPiece) => {
     piece.moves.forEach((move) => {
-      const className = board.pieces[move].fen !== EMPTY_FEN ? "capture-receptor" : "empty-receptor";
+      const className =
+        board.pieces[move.toPosition].fen !== EMPTY_FEN ? "capture-receptor" : "empty-receptor";
 
-      const cell = document.querySelector(`.cell[data-pos='${move}']`) as HTMLDivElement;
+      const cell = document.querySelector(`.cell[data-pos='${move.toPosition}']`) as HTMLDivElement;
 
       // cell.onclick = () => onCellClick(cell, move.row, move.column);
       cell.classList.toggle(className);
 
       const cellPiece = document.querySelector(
-        `.cell[data-pos='${move}'] button.piece-button`
+        `.cell[data-pos='${move.toPosition}'] button.piece-button`
       ) as HTMLDivElement;
 
       cellPiece?.classList.toggle("disabled");
@@ -103,8 +104,14 @@ const Board = () => {
     if (selectedPiece) {
       const { position, moves } = selectedPiece;
 
-      if (notAnAvailableMove(moves, cellPosition)) {
+      let pieceMove = notAnAvailableMove(moves, cellPosition);
+
+      if (pieceMove === undefined) {
         return;
+      }
+
+      if (pieceMove.isPromotion) {
+        console.log("This is a promoting pawn!");
       }
 
       const copy_board: TBoard = JSON.parse(JSON.stringify(board));
@@ -138,19 +145,18 @@ const Board = () => {
       // }
 
       togglePieceAvailableMoves(selectedPiece);
-      // add loading before sendin request
-      movePiece(position, cellPosition);
+      // add loading before sending request
+      movePiece(pieceMove);
       // currentTarget.onclick = null;
       // send request to server and update the state with the result
     }
   };
 
-  const movePiece = (from: number, to: number) => {
+  const movePiece = (pieceMove: TMove) => {
+    pieceMove.promotionType = "Q"
+    
     http
-      .post<TBoard>("/board/move/piece", {
-        from,
-        to,
-      })
+      .post<TBoard>("/board/move/piece", pieceMove)
       .then((response) => response.data)
       .then((data) => {
         setBoard(data);
@@ -158,7 +164,7 @@ const Board = () => {
   };
 
   const resetBoard = (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault()
+    e.preventDefault();
     const inputFen: HTMLInputElement | null = document.getElementById(
       "input-fen"
     ) as HTMLInputElement;
@@ -181,24 +187,24 @@ const Board = () => {
   };
 
   const fetchCountMoves = (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault()
+    e.preventDefault();
     let depthInput = document.getElementById("in_depth");
 
     if (!depthInput) {
-      return
+      return;
     }
 
-    let depth = Number((depthInput as HTMLInputElement).value)
+    let depth = Number((depthInput as HTMLInputElement).value);
 
     http
-      .post<{moves: number}>("/board/moves/count", {
-        depth 
+      .post<{ moves: number }>("/board/moves/count", {
+        depth,
       })
       .then((response) => response.data)
       .then((data) => {
         console.log("Moves from here (depth:):", data.moves);
       });
-  }
+  };
 
   useEffect(() => {
     http
@@ -206,7 +212,7 @@ const Board = () => {
       .then((response) => response.data)
       .then((data) => {
         // console.log("Setting board", data);
-        setBoard(data)
+        setBoard(data);
       });
   }, []);
 
@@ -215,17 +221,17 @@ const Board = () => {
 
     if (board.winner !== "-") {
       if (board.winner === "bw") {
-        alert("Draw")
+        alert("Draw");
       } else {
-        alert(board.winner === 'w' ? `Humano venceu!` : `IA venceu!`)
+        alert(board.winner === "w" ? `Humano venceu!` : `IA venceu!`);
       }
     }
   }, [board]);
 
   return (
     <>
-    <div id="floating-forms">
-        <form method="post" onSubmit={resetBoard} >
+      <div id="floating-forms">
+        <form method="post" onSubmit={resetBoard}>
           <input type="text" name="fen" id="input-fen" />
           <button type="submit" id="reset-btn">
             Load FEN
@@ -233,9 +239,11 @@ const Board = () => {
         </form>
         <form method="post" onSubmit={fetchCountMoves}>
           <input type="number" name="depth" id="in_depth" />
-          <button type="submit" id="count_moves_btn">Count</button>
+          <button type="submit" id="count_moves_btn">
+            Count
+          </button>
         </form>
-    </div>
+      </div>
       <div id="board">
         <div id="white-captures" className="captures">
           {board.whiteCaptures.map((piece_fen, i) => (
