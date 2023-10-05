@@ -6,9 +6,16 @@ use crate::{
     ai::minimax::MiniMax,
     common::{
         contants::INITIAL_FEN,
-        piece_utils::{is_white_piece, PieceType}, piece_move::PieceMove,
+        piece_move::PieceMove,
+        piece_utils::{
+            get_promotion_char_options, is_white_piece, piece_fen_from_value, piece_value_from_fen,
+            PieceType,
+        },
     },
-    dto::{piece_dto::PieceDTO, piece_move_dto::PieceMoveDTO, dto_utils::piece_move_dto_from_piece_move},
+    dto::{
+        dto_utils::piece_move_dto_from_piece_move, piece_dto::PieceDTO,
+        piece_move_dto::PieceMoveDTO,
+    },
     game::{board::Board, board_state::BoardState},
 };
 
@@ -44,7 +51,10 @@ impl BoardWrapper {
     }
 
     pub fn get_move_generation_count(&mut self, depth: usize) -> u64 {
-        move_generation_count(&mut self.board, depth)
+        let nodes_searched = move_generation_count(&mut self.board, depth, true);
+        println!("Nodes searched: {}", nodes_searched);
+
+        nodes_searched
     }
 
     pub fn black_captures_to_fen(&self) -> Vec<char> {
@@ -58,8 +68,6 @@ impl BoardWrapper {
     pub fn get_available_moves(&mut self) -> Vec<PieceDTO> {
         let mut pieces: Vec<PieceDTO> = Vec::new();
 
-        //println!("Just entered RUST");
-
         for piece in self.board.get_pieces().iter().flatten() {
             pieces.push(PieceDTO::new(
                 piece.get_fen(),
@@ -68,7 +76,7 @@ impl BoardWrapper {
                 piece.is_white(),
             ));
         }
-        // println!("Pieces at the very end: {:?}", pieces);
+
         pieces
     }
 
@@ -92,30 +100,79 @@ impl BoardWrapper {
     }
 }
 
-fn move_generation_count(board: &mut Board, depth: usize) -> u64 {
-    if depth == 0 {
+fn move_generation_count(board: &mut Board, depth: usize, track_moves: bool) -> u64 {
+    if depth == 0 || board.is_game_finished() {
         return 1;
     }
 
     let pieces = board.get_pieces();
+
     let mut num_positions: u64 = 0;
 
-    // get_available_moves should only return the pieces, not empties
-    for piece in pieces.iter().flatten() {
+    for piece in pieces.iter().flatten() {        
+        if (piece.get_value() == PieceType::Empty as i8)
+            || (piece.is_white() != board.is_white_move())
+        {
+            continue;
+        }
+        
         for piece_move in piece.get_immutable_moves().iter() {
-            if (piece.get_value() == PieceType::Empty as i8)
-                || (is_white_piece(piece.get_value()) != board.is_white_move())
-            {
-                continue;
+
+            let mut promotion_char_options = vec![piece_fen_from_value(piece_move.promotion_type)];
+
+            if piece_move.is_promotion {
+                promotion_char_options = get_promotion_char_options(piece.is_white());
             }
 
-            let _ = board.move_piece(piece_move.clone());
+            let mut piece_move = piece_move.clone();
 
-            num_positions += move_generation_count(board, depth - 1);
+            for promotion_option in promotion_char_options {
+                piece_move.promotion_type = piece_value_from_fen(&promotion_option);
 
-            board.undo_move();
+                board.move_piece(piece_move.clone());
+
+                let moves_count = move_generation_count(board, depth - 1, false);
+                num_positions += moves_count;
+
+                if track_moves {
+                    if piece_move.is_promotion {
+                        println!("{}{}: {}", 
+                            get_move_string(piece_move.clone()), promotion_option.clone(), moves_count)                    
+                    } else {
+                        println!("{}: {}", get_move_string(piece_move.clone()), moves_count)
+                    }
+                }
+
+                board.undo_move();
+            }
         }
     }
 
     num_positions
+}
+
+fn get_position_line_number(position: i8) -> usize {
+    (8 - ((position - (position % 8)) / 8)) as usize
+}
+
+fn get_position_column_number(position: i8) -> usize {
+    (position - (position - (position % 8))) as usize
+}
+
+fn get_move_string(piece_move: PieceMove) -> String {
+    let COLUMNS = ["a", "b", "c", "d", "e", "f", "g", "h"];
+
+    let from_position_line = get_position_line_number(piece_move.from_position);
+
+    let mut move_str = format!("{}{}", 
+        COLUMNS[get_position_column_number(piece_move.from_position)], from_position_line);
+
+    let to_position_line = get_position_line_number(piece_move.to_position);
+
+    let to_position = format!("{}{}", 
+        COLUMNS[get_position_column_number(piece_move.to_position)], to_position_line);
+
+    move_str.push_str(to_position.as_str());
+
+    move_str
 }

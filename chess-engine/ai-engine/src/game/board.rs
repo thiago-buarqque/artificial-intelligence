@@ -40,17 +40,19 @@ impl Board {
         let mut state = self.state.lock().unwrap();
 
         if state.is_valid_position(index) {
-            let current_piece = state.get_piece(index);
+            let existing_piece = state.get_piece(index);
 
-            if !is_piece_of_type(current_piece, PieceType::Empty) {
-                let is_white = is_white_piece(current_piece);
+            if !is_piece_of_type(existing_piece, PieceType::Empty) {
+                let is_white = is_white_piece(existing_piece);
+
                 if is_white {
-                    state.append_black_capture(current_piece);
+                    state.append_black_capture(existing_piece);
                 } else {
-                    state.append_white_capture(current_piece);
+                    state.append_white_capture(existing_piece);
                 }
 
-                if is_piece_of_type(current_piece, PieceType::King) {
+                // This shouldn't happen
+                if is_piece_of_type(existing_piece, PieceType::King) {
                     if is_white {
                         state.set_winner(PieceColor::Black as i8);
                     } else {
@@ -63,7 +65,7 @@ impl Board {
         }
     }
 
-    pub fn get_winner_fen(&self) -> String {
+    pub fn get_winner_fen(&self) -> String {       
         match self.state.lock().unwrap().winner() {
             x if x == (PieceColor::White as i8) => String::from("w"),
             x if x == (PieceColor::Black as i8) => String::from("b"),
@@ -71,11 +73,6 @@ impl Board {
             _ => String::from("-"),
         }
     }
-
-    // pub fn load_state_and_clear_history(&mut self, state: Arc<Mutex<BoardState>>) {
-    //     self.state_history = Vec::new();
-    //     self.state = state;
-    // }
 
     pub fn move_piece(&mut self, piece_move: PieceMove) -> Result<(), &'static str> {
         let state = self.state.lock().unwrap();
@@ -112,6 +109,7 @@ impl Board {
             let replaced_piece = state.get_piece(to_index);
 
             drop(state);
+
             if moving_piece == PieceType::Empty as i8 {
                 return Err("No piece at the position");
             } else if get_piece_type(replaced_piece) == PieceType::King {
@@ -120,9 +118,7 @@ impl Board {
 
             if self.is_en_passant_capture(moving_piece, to_index) {
                 self.capture_en_passant(moving_piece);
-            } else if piece_move.is_promotion {
-                println!("Is promoting: {}->{}", moving_piece, piece_move.promotion_type);
-                
+            } else if piece_move.is_promotion {                
                 if piece_move.promotion_type == 0 {
                     return Err("Pawn needs promotion type.");
                 }
@@ -141,26 +137,26 @@ impl Board {
             state.place_piece(from_index, PieceType::Empty as i8);
 
             drop(state);
-
-            self.register_en_passant(from_index, moving_piece, to_index);
-
-            state = self.state.lock().unwrap();
-
-            if !state.is_white_move() {
-                state.increment_full_moves();
-            }
-
+            
             if !rook_castling {
+                self.register_en_passant(from_index, moving_piece, to_index);
+
+                state = self.state.lock().unwrap();
+
+                if !state.is_white_move() {
+                    state.increment_full_moves();
+                }
+
                 let is_white_move = state.is_white_move();
 
                 state.set_is_white_move(!is_white_move);
-            }
 
-            // Remove hook ability due to rook move
-            if get_piece_type(moving_piece) == PieceType::Rook {
-                state.update_castling_ability(from_index, from_index < 8, from_index % 8 == 7);
-            } else if get_piece_type(replaced_piece) == PieceType::Rook {
-                state.update_castling_ability(to_index, to_index < 8, to_index % 8 == 7);
+                // Remove hook ability due to rook move
+                if get_piece_type(moving_piece) == PieceType::Rook {
+                    state.update_castling_ability(from_index, from_index < 8, from_index % 8 == 7);
+                } else if get_piece_type(replaced_piece) == PieceType::Rook {
+                    state.update_castling_ability(to_index, to_index < 8, to_index % 8 == 7);
+                }
             }
 
             return Ok(());
@@ -181,7 +177,7 @@ impl Board {
         {
             // The error will never occur, indexes are 0..=63
             drop(state);
-            let _ = self.castle(from_index, to_index, white_piece);
+            self.castle(from_index, to_index, white_piece);
             state = self.state.lock().unwrap();
         }
 
@@ -269,23 +265,24 @@ impl Board {
     }
 
     fn register_en_passant(&mut self, from_index: i8, piece_value: i8, to_index: i8) {
+        let mut state = self.state.lock().unwrap();
+        
+        state.set_white_en_passant(-1);
+        state.set_black_en_passant(-1);
+
         if is_piece_of_type(piece_value, PieceType::Pawn) {
             let white_piece = is_white_piece(piece_value);
 
-            let mut state = self.state.lock().unwrap();
-
             if white_piece {
-                state.set_white_en_passant(-1);
 
                 // magic numbers...
-                if from_index > 47 && from_index < 56 && to_index > 31 && to_index < 40 {
+                if (48..=55).contains(&from_index) && (32..=39).contains(&to_index) {
                     state.set_white_en_passant(to_index + 8);
                 }
             } else {
-                state.set_black_en_passant(-1);
 
-                // magic numbers...
-                if from_index > 7 && from_index < 16 && to_index > 23 && to_index < 32 {
+                // magic numbers...                
+                if (8..=15).contains(&from_index) && (24..=31).contains(&to_index) {
                     state.set_black_en_passant(to_index - 8);
                 }
             }

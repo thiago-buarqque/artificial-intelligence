@@ -82,7 +82,7 @@ pub fn piece_fen_from_value(piece_value: i8) -> char {
 }
 
 pub fn get_promotion_char_options(white: bool) -> Vec<char> {
-    if white {
+    if !white {
         return vec!['q', 'r', 'b', 'n'];
     }
     vec!['Q', 'R', 'B', 'N']

@@ -18,6 +18,10 @@ impl MiniMax {
     pub fn make_move(&mut self, board: &mut Board, depth: u8) -> (i32, PieceMove) {
         self.states_checked = 0;
 
+        let state = board.get_state_clone();
+        println!("Initial state: {:#?}", state);
+
+
         self.minimax(board, depth, true)
     }
 
@@ -53,7 +57,7 @@ impl MiniMax {
                 for promotion_option in promotion_char_options {
                     piece_move.promotion_type = piece_value_from_fen(&promotion_option);
 
-                    let _ = board.move_piece(piece_move.clone());
+                    board.move_piece(piece_move.clone());
 
                     if max {
                         let current_move_value = self.minimax(board, depth - 1, false);
