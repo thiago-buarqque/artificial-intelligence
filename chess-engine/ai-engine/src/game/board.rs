@@ -1,8 +1,7 @@
-use std::sync::{Arc, Mutex};
-
 use crate::common::{
     board_piece::BoardPiece,
-    piece_utils::{get_piece_type, is_piece_of_type, is_white_piece, PieceColor, PieceType}, piece_move::PieceMove,
+    piece_move::PieceMove,
+    piece_utils::{get_piece_type, is_piece_of_type, is_white_piece, PieceColor, PieceType},
 };
 
 use super::{board_state::BoardState, move_generator::MoveGenerator};
@@ -10,19 +9,19 @@ use super::{board_state::BoardState, move_generator::MoveGenerator};
 #[derive(Debug, Clone)]
 pub struct Board {
     // move_generator: Option<MoveGenerator>,
-    state: Arc<Mutex<BoardState>>,
+    state: BoardState,
     state_history: Vec<BoardState>,
 }
 
 impl Board {
-    pub fn new(state: Arc<Mutex<BoardState>>) -> Self {
+    pub fn new() -> Self {
         Board {
-            state,
+            state: BoardState::new(),
             state_history: Vec::new(),
         }
     }
 
-    pub fn get_state_reference(&self) -> &Arc<Mutex<BoardState>> {
+    pub fn get_state_reference(&self) -> &BoardState {
         &self.state
     }
 
@@ -36,37 +35,49 @@ impl Board {
         move_generator.get_available_moves(self)
     }
 
-    fn place_piece(&mut self, index: i8, piece: i8) {
-        let mut state = self.state.lock().unwrap();
+    pub fn set_winner(&mut self, is_king_in_check: bool, is_white_move: bool) {
+        self.state.set_winner(
+            if is_king_in_check {
+                if is_white_move {
+                    PieceColor::Black as i8
+                } else {
+                    PieceColor::White as i8
+                }
+            } else {
+                PieceColor::Black as i8 | PieceColor::White as i8 // Draw
+            }
+        );
+    }
 
-        if state.is_valid_position(index) {
-            let existing_piece = state.get_piece(index);
+    fn place_piece(&mut self, index: i8, piece: i8) {
+        if self.state.is_valid_position(index) {
+            let existing_piece = self.state.get_piece(index);
 
             if !is_piece_of_type(existing_piece, PieceType::Empty) {
                 let is_white = is_white_piece(existing_piece);
 
                 if is_white {
-                    state.append_black_capture(existing_piece);
+                    self.state.append_black_capture(existing_piece);
                 } else {
-                    state.append_white_capture(existing_piece);
+                    self.state.append_white_capture(existing_piece);
                 }
 
                 // This shouldn't happen
                 if is_piece_of_type(existing_piece, PieceType::King) {
                     if is_white {
-                        state.set_winner(PieceColor::Black as i8);
+                        self.state.set_winner(PieceColor::Black as i8);
                     } else {
-                        state.set_winner(PieceColor::White as i8);
+                        self.state.set_winner(PieceColor::White as i8);
                     }
                 }
             }
 
-            state.place_piece(index, piece);
+            self.state.place_piece(index, piece);
         }
     }
 
-    pub fn get_winner_fen(&self) -> String {       
-        match self.state.lock().unwrap().winner() {
+    pub fn get_winner_fen(&self) -> String {
+        match self.state.winner() {
             x if x == (PieceColor::White as i8) => String::from("w"),
             x if x == (PieceColor::Black as i8) => String::from("b"),
             x if x == (PieceColor::Black as i8 | PieceColor::White as i8) => String::from("bw"),
@@ -75,23 +86,19 @@ impl Board {
     }
 
     pub fn move_piece(&mut self, piece_move: PieceMove) -> Result<(), &'static str> {
-        let state = self.state.lock().unwrap();
-
-        self.state_history.push(state.clone());
-
-        drop(state);
+        self.state_history.push(self.state.clone());
 
         self._move_piece(piece_move, false)
     }
 
     pub fn undo_move(&mut self) {
         if let Some(state) = self.state_history.pop() {
-            self.state = Arc::new(Mutex::new(state))
+            self.state = state
         }
     }
 
     pub fn get_state_clone(&self) -> BoardState {
-        self.state.lock().unwrap().clone()
+        self.state.clone()
     }
 
     fn _move_piece(
@@ -99,30 +106,27 @@ impl Board {
         piece_move: PieceMove,
         rook_castling: bool,
     ) -> Result<(), &'static str> {
-        let mut state = self.state.lock().unwrap();
-
         let from_index = piece_move.from_position;
         let to_index = piece_move.to_position;
 
-        if state.is_valid_position(from_index) && state.is_valid_position(to_index) {
-            let mut moving_piece = state.get_piece(from_index);
-            let replaced_piece = state.get_piece(to_index);
-
-            drop(state);
+        if self.state.is_valid_position(from_index) && self.state.is_valid_position(to_index) {
+            let mut moving_piece = self.state.get_piece(from_index);
+            let replaced_piece = self.state.get_piece(to_index);
 
             if moving_piece == PieceType::Empty as i8 {
                 return Err("No piece at the position");
             } else if get_piece_type(replaced_piece) == PieceType::King {
+                println!("Can't capture king!");
                 return Err("Can't capture king at position");
             }
 
             if self.is_en_passant_capture(moving_piece, to_index) {
                 self.capture_en_passant(moving_piece);
-            } else if piece_move.is_promotion {                
+            } else if piece_move.is_promotion {
                 if piece_move.promotion_type == 0 {
                     return Err("Pawn needs promotion type.");
                 }
-                
+
                 moving_piece = piece_move.promotion_type;
             } else if moving_piece == (PieceColor::White as i8 | PieceType::King as i8)
                 || moving_piece == (PieceColor::Black as i8 | PieceType::King as i8)
@@ -132,30 +136,24 @@ impl Board {
 
             self.place_piece(to_index, moving_piece);
 
-            state = self.state.lock().unwrap();
+            self.state.place_piece(from_index, PieceType::Empty as i8);
 
-            state.place_piece(from_index, PieceType::Empty as i8);
-
-            drop(state);
-            
             if !rook_castling {
                 self.register_en_passant(from_index, moving_piece, to_index);
 
-                state = self.state.lock().unwrap();
-
-                if !state.is_white_move() {
-                    state.increment_full_moves();
+                if !self.state.is_white_move() {
+                    self.state.increment_full_moves();
                 }
 
-                let is_white_move = state.is_white_move();
+                let is_white_move = self.state.is_white_move();
 
-                state.set_is_white_move(!is_white_move);
+                self.state.set_is_white_move(!is_white_move);
 
                 // Remove hook ability due to rook move
                 if get_piece_type(moving_piece) == PieceType::Rook {
-                    state.update_castling_ability(from_index, from_index < 8, from_index % 8 == 7);
+                    self.state.update_castling_ability(from_index, from_index < 8, from_index % 8 == 7);
                 } else if get_piece_type(replaced_piece) == PieceType::Rook {
-                    state.update_castling_ability(to_index, to_index < 8, to_index % 8 == 7);
+                    self.state.update_castling_ability(to_index, to_index < 8, to_index % 8 == 7);
                 }
             }
 
@@ -166,25 +164,20 @@ impl Board {
     }
 
     fn handle_king_move(&mut self, from_index: i8, moving_piece: i8, to_index: i8) {
-        let mut state = self.state.lock().unwrap();
-
         let white_piece = is_white_piece(moving_piece);
 
         let is_castle_move = (from_index - to_index).abs() == 2;
         if is_castle_move
-            && ((white_piece && !state.white_king_moved())
-                || (!white_piece && !state.black_king_moved()))
+            && ((white_piece && !self.state.white_king_moved())
+                || (!white_piece && !self.state.black_king_moved()))
         {
-            // The error will never occur, indexes are 0..=63
-            drop(state);
             self.castle(from_index, to_index, white_piece);
-            state = self.state.lock().unwrap();
         }
 
         if white_piece {
-            state.set_white_king_moved(true);
+            self.state.set_white_king_moved(true);
         } else {
-            state.set_black_king_moved(true);
+            self.state.set_black_king_moved(true);
         }
     }
 
@@ -209,40 +202,34 @@ impl Board {
             from_index + 1
         };
 
-        let mut state = self.state.lock().unwrap();
-
         if white_piece {
-            state.set_white_able_to_queen_side_castle(false);
-            state.set_white_able_to_king_side_castle(false);
+            self.state.set_white_able_to_queen_side_castle(false);
+            self.state.set_white_able_to_king_side_castle(false);
         } else {
-            state.set_black_able_to_queen_side_castle(false);
-            state.set_black_able_to_king_side_castle(false);
+            self.state.set_black_able_to_queen_side_castle(false);
+            self.state.set_black_able_to_king_side_castle(false);
         }
-
-        drop(state);        
 
         self._move_piece(PieceMove::new(rook_position, new_rook_position), true)
     }
 
     fn capture_en_passant(&mut self, moving_piece: i8) {
-        let mut state = self.state.lock().unwrap();
-
         let white_piece = is_white_piece(moving_piece);
 
         if white_piece {
-            let position = state.black_en_passant() + 8;
-            let piece_value = state.get_piece(position);
+            let position = self.state.black_en_passant() + 8;
+            let piece_value = self.state.get_piece(position);
 
-            state.append_white_capture(piece_value);
-            state.place_piece(position, PieceType::Empty as i8);
-            state.set_black_en_passant(-1);
+            self.state.append_white_capture(piece_value);
+            self.state.place_piece(position, PieceType::Empty as i8);
+            self.state.set_black_en_passant(-1);
         } else {
-            let position = state.white_en_passant() - 8;
-            let piece_value = state.get_piece(position);
+            let position = self.state.white_en_passant() - 8;
+            let piece_value = self.state.get_piece(position);
 
-            state.append_black_capture(piece_value);
-            state.place_piece(position, PieceType::Empty as i8);
-            state.set_white_en_passant(-1);
+            self.state.append_black_capture(piece_value);
+            self.state.place_piece(position, PieceType::Empty as i8);
+            self.state.set_white_en_passant(-1);
         }
     }
 
@@ -250,12 +237,10 @@ impl Board {
         if is_piece_of_type(piece, PieceType::Pawn) {
             let white_piece = is_white_piece(piece);
 
-            let state = self.state.lock().unwrap();
-
             let en_passant = if white_piece {
-                state.black_en_passant()
+                self.state.black_en_passant()
             } else {
-                state.white_en_passant()
+                self.state.white_en_passant()
             };
 
             return en_passant != -1 && to_index == en_passant;
@@ -265,25 +250,21 @@ impl Board {
     }
 
     fn register_en_passant(&mut self, from_index: i8, piece_value: i8, to_index: i8) {
-        let mut state = self.state.lock().unwrap();
-        
-        state.set_white_en_passant(-1);
-        state.set_black_en_passant(-1);
+        self.state.set_white_en_passant(-1);
+        self.state.set_black_en_passant(-1);
 
         if is_piece_of_type(piece_value, PieceType::Pawn) {
             let white_piece = is_white_piece(piece_value);
 
             if white_piece {
-
                 // magic numbers...
                 if (48..=55).contains(&from_index) && (32..=39).contains(&to_index) {
-                    state.set_white_en_passant(to_index + 8);
+                    self.state.set_white_en_passant(to_index + 8);
                 }
             } else {
-
-                // magic numbers...                
+                // magic numbers...
                 if (8..=15).contains(&from_index) && (24..=31).contains(&to_index) {
-                    state.set_black_en_passant(to_index - 8);
+                    self.state.set_black_en_passant(to_index - 8);
                 }
             }
         }
@@ -294,19 +275,19 @@ impl Board {
 
         state.load_position(fen_position);
 
-        self.state = Arc::new(Mutex::new(state));
+        self.state = state;
     }
 
     pub fn black_captures_to_fen(&self) -> Vec<char> {
-        self.state.lock().unwrap().black_captures_to_fen()
+        self.state.black_captures_to_fen()
     }
 
     pub fn white_captures_to_fen(&self) -> Vec<char> {
-        self.state.lock().unwrap().white_captures_to_fen()
+        self.state.white_captures_to_fen()
     }
 
     pub fn is_white_move(&self) -> bool {
-        self.state.lock().unwrap().is_white_move()
+        self.state.is_white_move()
     }
 
     pub fn is_game_finished(&self) -> bool {
@@ -314,6 +295,6 @@ impl Board {
     }
 
     pub fn get_squares(&self) -> [i8; 64] {
-        *self.state.lock().unwrap().squares()
+        *self.state.squares()
     }
 }

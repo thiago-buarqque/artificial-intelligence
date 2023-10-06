@@ -1,14 +1,12 @@
-use std::sync::{Arc, Mutex};
-
 use pyo3::{exceptions, prelude::*};
 
 use crate::{
-    ai::minimax::MiniMax,
+    ai::{minimax::MiniMax, minimax_alpha_beta::MiniMaxAlphaBeta},
     common::{
         contants::INITIAL_FEN,
         piece_move::PieceMove,
         piece_utils::{
-            get_promotion_char_options, is_white_piece, piece_fen_from_value, piece_value_from_fen,
+            get_promotion_char_options, piece_fen_from_value, piece_value_from_fen,
             PieceType,
         },
     },
@@ -16,13 +14,13 @@ use crate::{
         dto_utils::piece_move_dto_from_piece_move, piece_dto::PieceDTO,
         piece_move_dto::PieceMoveDTO,
     },
-    game::{board::Board, board_state::BoardState},
+    game::board::Board,
 };
 
 #[pyclass]
 pub struct BoardWrapper {
     board: Board,
-    mini_max: MiniMax,
+    mini_max: MiniMaxAlphaBeta,
 }
 
 // is this a facade?
@@ -30,29 +28,25 @@ pub struct BoardWrapper {
 impl BoardWrapper {
     #[new]
     fn default() -> BoardWrapper {
-        let state = Arc::new(Mutex::new(BoardState::new()));
-
-        let mut board: Board = Board::new(state.clone());
+        let mut board: Board = Board::new();
 
         board.load_position(INITIAL_FEN);
 
         BoardWrapper {
             board,
-            mini_max: MiniMax::new(),
+            mini_max: MiniMaxAlphaBeta::new(),
         }
     }
 
     pub fn get_ai_move(&mut self, depth: u8) -> (i32, PieceMoveDTO) {
         let result = self.mini_max.make_move(&mut self.board, depth);
 
-        println!("Evaluated {} states", self.mini_max.states_checked);
-
         (result.0, piece_move_dto_from_piece_move(result.1))
     }
 
     pub fn get_move_generation_count(&mut self, depth: usize) -> u64 {
         let nodes_searched = move_generation_count(&mut self.board, depth, true);
-        println!("Nodes searched: {}", nodes_searched);
+        println!("\nNodes searched: {}", nodes_searched);
 
         nodes_searched
     }
@@ -109,15 +103,14 @@ fn move_generation_count(board: &mut Board, depth: usize, track_moves: bool) -> 
 
     let mut num_positions: u64 = 0;
 
-    for piece in pieces.iter().flatten() {        
+    for piece in pieces.iter().flatten() {
         if (piece.get_value() == PieceType::Empty as i8)
             || (piece.is_white() != board.is_white_move())
         {
             continue;
         }
-        
-        for piece_move in piece.get_immutable_moves().iter() {
 
+        for piece_move in piece.get_immutable_moves().iter() {
             let mut promotion_char_options = vec![piece_fen_from_value(piece_move.promotion_type)];
 
             if piece_move.is_promotion {
@@ -136,8 +129,12 @@ fn move_generation_count(board: &mut Board, depth: usize, track_moves: bool) -> 
 
                 if track_moves {
                     if piece_move.is_promotion {
-                        println!("{}{}: {}", 
-                            get_move_string(piece_move.clone()), promotion_option.clone(), moves_count)                    
+                        println!(
+                            "{}{}: {}",
+                            get_move_string(piece_move.clone()),
+                            promotion_option.clone(),
+                            moves_count
+                        )
                     } else {
                         println!("{}: {}", get_move_string(piece_move.clone()), moves_count)
                     }
@@ -160,17 +157,23 @@ fn get_position_column_number(position: i8) -> usize {
 }
 
 fn get_move_string(piece_move: PieceMove) -> String {
-    let COLUMNS = ["a", "b", "c", "d", "e", "f", "g", "h"];
+    let columns = ["a", "b", "c", "d", "e", "f", "g", "h"];
 
     let from_position_line = get_position_line_number(piece_move.from_position);
 
-    let mut move_str = format!("{}{}", 
-        COLUMNS[get_position_column_number(piece_move.from_position)], from_position_line);
+    let mut move_str = format!(
+        "{}{}",
+        columns[get_position_column_number(piece_move.from_position)],
+        from_position_line
+    );
 
     let to_position_line = get_position_line_number(piece_move.to_position);
 
-    let to_position = format!("{}{}", 
-        COLUMNS[get_position_column_number(piece_move.to_position)], to_position_line);
+    let to_position = format!(
+        "{}{}",
+        columns[get_position_column_number(piece_move.to_position)],
+        to_position_line
+    );
 
     move_str.push_str(to_position.as_str());
 
