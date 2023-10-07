@@ -1,4 +1,6 @@
-use crate::common::piece_utils::{piece_value_from_fen, pieces_to_fen};
+use crate::common::piece_utils::{piece_value_from_fen, pieces_to_fen, PieceColor, PieceType};
+
+use super::contants::{BLACK_KING_INITIAL_POSITION, WHITE_KING_INITIAL_POSITION};
 
 #[derive(Debug, Clone)]
 pub struct BoardState {
@@ -7,6 +9,7 @@ pub struct BoardState {
     black_captures: Vec<i8>,
     black_en_passant: i8,
     black_king_moved: bool,
+    black_king_position: i8,
     full_moves: i8,
     half_moves: i8,
     is_white_move: bool,
@@ -16,6 +19,7 @@ pub struct BoardState {
     white_captures: Vec<i8>,
     white_en_passant: i8,
     white_king_moved: bool,
+    white_king_position: i8,
     winner: i8,
 }
 
@@ -27,6 +31,7 @@ impl BoardState {
             black_captures: Vec::new(),
             black_en_passant: -1,
             black_king_moved: false,
+            black_king_position: BLACK_KING_INITIAL_POSITION,
             full_moves: 0,
             half_moves: 0,
             is_white_move: true,
@@ -36,6 +41,7 @@ impl BoardState {
             white_captures: Vec::new(),
             white_en_passant: -1,
             white_king_moved: false,
+            white_king_position: WHITE_KING_INITIAL_POSITION,
             winner: 0,
         }
     }
@@ -47,6 +53,7 @@ impl BoardState {
             black_captures: self.black_captures.clone(),
             black_en_passant: self.black_en_passant,
             black_king_moved: self.black_king_moved,
+            black_king_position: self.black_king_position,
             full_moves: self.full_moves,
             half_moves: self.half_moves,
             is_white_move: self.is_white_move,
@@ -56,8 +63,19 @@ impl BoardState {
             white_captures: self.white_captures.clone(),
             white_en_passant: self.white_en_passant,
             white_king_moved: self.white_king_moved,
+            white_king_position: self.white_king_position,
             winner: self.winner,
         }
+    }
+
+    pub fn is_able_to_castle_queen_side(&self, white_king: bool) -> bool {
+        (white_king && self.white_able_to_queen_side_castle())
+            || (!white_king && self.black_able_to_queen_side_castle())
+    }
+
+    pub fn is_able_to_castle_king_side(&self, white_king: bool) -> bool {
+        (white_king && self.white_able_to_king_side_castle())
+            || (!white_king && self.black_able_to_king_side_castle())
     }
 
     pub fn white_captures_to_fen(&self) -> Vec<char> {
@@ -77,6 +95,12 @@ impl BoardState {
     }
 
     pub fn place_piece(&mut self, index: i8, piece: i8) {
+        if piece == (PieceColor::Black as i8 | PieceType::King as i8) {
+            self.black_king_position = index;
+        } else if piece == (PieceColor::White as i8 | PieceType::King as i8) {
+            self.white_king_position = index;
+        }
+
         self.squares[index as usize] = piece;
     }
 
@@ -184,6 +208,13 @@ impl BoardState {
                     index += char.to_digit(10).unwrap() as usize;
                 } else {
                     self.squares[index] = piece_value_from_fen(&char);
+
+                    if char == 'k' {
+                        self.black_king_position = index as i8;
+                    } else if char == 'K' {
+                        self.white_king_position = index as i8;
+                    }
+
                     index += 1;
                 }
             }
@@ -199,10 +230,6 @@ impl BoardState {
         self.black_able_to_queen_side_castle
     }
 
-    // pub fn black_captures(&self) -> &Vec<i8> {
-    //     &self.black_captures
-    // }
-
     pub fn black_en_passant(&self) -> i8 {
         self.black_en_passant
     }
@@ -211,13 +238,13 @@ impl BoardState {
         self.black_king_moved
     }
 
-    // pub fn full_moves(&self) -> i8 {
-    //     self.full_moves
-    // }
+    pub fn get_black_king_position(&self) -> i8 {
+        self.black_king_position
+    }
 
-    // pub fn half_moves(&self) -> i8 {
-    //     self.half_moves
-    // }
+    pub fn get_white_king_position(&self) -> i8 {
+        self.white_king_position
+    }
 
     pub fn is_white_move(&self) -> bool {
         self.is_white_move
@@ -234,10 +261,6 @@ impl BoardState {
     pub fn white_able_to_queen_side_castle(&self) -> bool {
         self.white_able_to_queen_side_castle
     }
-
-    // pub fn white_captures(&self) -> &Vec<i8> {
-    //     &self.white_captures
-    // }
 
     pub fn white_en_passant(&self) -> i8 {
         self.white_en_passant

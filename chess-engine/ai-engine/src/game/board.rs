@@ -8,7 +8,6 @@ use super::{board_state::BoardState, move_generator::MoveGenerator};
 
 #[derive(Debug, Clone)]
 pub struct Board {
-    // move_generator: Option<MoveGenerator>,
     state: BoardState,
     state_history: Vec<BoardState>,
 }
@@ -36,17 +35,15 @@ impl Board {
     }
 
     pub fn set_winner(&mut self, is_king_in_check: bool, is_white_move: bool) {
-        self.state.set_winner(
-            if is_king_in_check {
-                if is_white_move {
-                    PieceColor::Black as i8
-                } else {
-                    PieceColor::White as i8
-                }
+        self.state.set_winner(if is_king_in_check {
+            if is_white_move {
+                PieceColor::Black as i8
             } else {
-                PieceColor::Black as i8 | PieceColor::White as i8 // Draw
+                PieceColor::White as i8
             }
-        );
+        } else {
+            PieceColor::Black as i8 | PieceColor::White as i8 // Draw
+        });
     }
 
     fn place_piece(&mut self, index: i8, piece: i8) {
@@ -151,9 +148,14 @@ impl Board {
 
                 // Remove hook ability due to rook move
                 if get_piece_type(moving_piece) == PieceType::Rook {
-                    self.state.update_castling_ability(from_index, from_index < 8, from_index % 8 == 7);
+                    self.state.update_castling_ability(
+                        from_index,
+                        from_index < 8,
+                        from_index % 8 == 7,
+                    );
                 } else if get_piece_type(replaced_piece) == PieceType::Rook {
-                    self.state.update_castling_ability(to_index, to_index < 8, to_index % 8 == 7);
+                    self.state
+                        .update_castling_ability(to_index, to_index < 8, to_index % 8 == 7);
                 }
             }
 

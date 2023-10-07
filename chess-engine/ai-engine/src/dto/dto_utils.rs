@@ -1,4 +1,4 @@
-use crate::common::{piece_utils::piece_fen_from_value, piece_move::PieceMove};
+use crate::common::{piece_move::PieceMove, piece_utils::piece_fen_from_value};
 
 use super::piece_move_dto::PieceMoveDTO;
 

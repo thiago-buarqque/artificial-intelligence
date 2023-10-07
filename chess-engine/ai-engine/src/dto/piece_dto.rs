@@ -2,7 +2,7 @@ use pyo3::prelude::*;
 
 use crate::common::piece_move::PieceMove;
 
-use super::{piece_move_dto::PieceMoveDTO, dto_utils::piece_move_dto_from_piece_move};
+use super::{dto_utils::piece_move_dto_from_piece_move, piece_move_dto::PieceMoveDTO};
 
 #[pyclass]
 #[derive(Debug, Clone)]
@@ -21,12 +21,12 @@ impl PieceDTO {
     pub fn new(fen: char, moves: Vec<PieceMove>, position: i8, white: bool) -> Self {
         PieceDTO {
             fen,
-            moves: moves.iter().map(
-                |_move| piece_move_dto_from_piece_move(_move.clone())
-            ).collect(),
+            moves: moves
+                .iter()
+                .map(|_move| piece_move_dto_from_piece_move(_move.clone()))
+                .collect(),
             position,
             white,
         }
     }
-
 }

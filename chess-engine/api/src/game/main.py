@@ -49,25 +49,25 @@ def move_piece():
     # 330, (0, 1)
 
     # Ai move
-    if board.get_winner_fen() == "-":
-        start = time.time()
-        move_value, move = \
-            board.get_ai_move(4)
-
-        # Evaluated 3553501 states
-        # Elapsed time: 3095.41654586792
-        # 330, (0, 1)
-
-        # Evaluated 10191929states
-        # Elapsed time: 15598.281860351562
-        # 0, (1, 16)
-        end = time.time()
-        print(f"Elapsed time: {(end - start) * 1000}")
-        print(f"{move_value}, "
-              f"({move.from_position}, {move.to_position})")
-
-        # if move.from_position != -1 and move.to_position != -1:
-        #     board.move_piece(move)
+    # if board.get_winner_fen() == "-":
+    #     start = time.time()
+    #     move_value, move = \
+    #         board.get_ai_move(4)
+    #
+    #     # Evaluated 3553501 states
+    #     # Elapsed time: 3095.41654586792
+    #     # 330, (0, 1)
+    #
+    #     # Evaluated 10191929states
+    #     # Elapsed time: 15598.281860351562
+    #     # 0, (1, 16)
+    #     end = time.time()
+    #     print(f"Elapsed time: {(end - start) * 1000}")
+    #     print(f"{move_value}, "
+    #           f"({move.from_position}, {move.to_position})")
+    #
+    #     if move.from_position != -1 and move.to_position != -1:
+    #         board.move_piece(move)
 
     return get_board()
 

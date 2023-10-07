@@ -1,7 +1,10 @@
 use crate::{
     common::{
         piece_move::PieceMove,
-        piece_utils::{get_piece_worth, is_white_piece, PieceType, get_promotion_char_options, piece_value_from_fen, piece_fen_from_value},
+        piece_utils::{
+            get_piece_worth, get_promotion_char_options, is_white_piece, piece_fen_from_value,
+            piece_value_from_fen, PieceType,
+        },
     },
     game::board::Board,
 };
@@ -25,7 +28,7 @@ impl MiniMax {
         (result.0, result.1)
     }
 
-    fn minimax(&mut self, board: &mut Board, depth: u8, max: bool) -> (i32, PieceMove, i64) {
+    fn minimax(&mut self, board: &mut Board, depth: u8, max: bool) -> (i32, PieceMove, u64) {
         // self.states_checked += 1;
 
         if depth == 0 || board.is_game_finished() {
@@ -47,7 +50,8 @@ impl MiniMax {
             }
 
             for piece_move in piece.get_immutable_moves().iter() {
-                let mut promotion_char_options = vec![piece_fen_from_value(piece_move.promotion_type)];
+                let mut promotion_char_options =
+                    vec![piece_fen_from_value(piece_move.promotion_type)];
 
                 if piece_move.is_promotion {
                     promotion_char_options = get_promotion_char_options(piece.is_white());

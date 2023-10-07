@@ -1,6 +1,6 @@
 use crate::dto::piece_move_dto::PieceMoveDTO;
 
-use super::piece_utils::{PieceType, piece_value_from_fen};
+use super::piece_utils::{piece_value_from_fen, PieceType};
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct PieceMove {

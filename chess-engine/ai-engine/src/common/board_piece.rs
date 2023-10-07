@@ -23,8 +23,13 @@ impl BoardPiece {
     pub fn get_fen(&self) -> char {
         self.fen
     }
+
     pub fn get_moves(&mut self) -> &mut Vec<PieceMove> {
         &mut self.moves
+    }
+
+    pub fn set_moves(&mut self, moves: Vec<PieceMove>) {
+        self.moves = moves
     }
 
     pub fn get_immutable_moves(&self) -> Vec<PieceMove> {

@@ -1,8 +1,8 @@
 mod ai;
 mod board_wrapper;
 mod common;
-mod game;
 mod dto;
+mod game;
 
 use std::env;
 

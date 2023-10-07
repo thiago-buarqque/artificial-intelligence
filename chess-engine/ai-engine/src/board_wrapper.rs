@@ -1,13 +1,12 @@
 use pyo3::{exceptions, prelude::*};
 
 use crate::{
-    ai::{minimax::MiniMax, minimax_alpha_beta::MiniMaxAlphaBeta},
+    ai::minimax::MiniMax,
     common::{
         contants::INITIAL_FEN,
         piece_move::PieceMove,
         piece_utils::{
-            get_promotion_char_options, piece_fen_from_value, piece_value_from_fen,
-            PieceType,
+            get_promotion_char_options, piece_fen_from_value, piece_value_from_fen, PieceType,
         },
     },
     dto::{
@@ -20,7 +19,7 @@ use crate::{
 #[pyclass]
 pub struct BoardWrapper {
     board: Board,
-    mini_max: MiniMaxAlphaBeta,
+    mini_max: MiniMax,
 }
 
 // is this a facade?
@@ -34,7 +33,7 @@ impl BoardWrapper {
 
         BoardWrapper {
             board,
-            mini_max: MiniMaxAlphaBeta::new(),
+            mini_max: MiniMax::new(),
         }
     }
 
