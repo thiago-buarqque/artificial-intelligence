@@ -6,7 +6,7 @@ use crate::{
         contants::INITIAL_FEN,
         piece_move::PieceMove,
         piece_utils::{
-            get_promotion_char_options, piece_fen_from_value, piece_value_from_fen, PieceType,
+            get_promotion_options, piece_fen_from_value, piece_value_from_fen, PieceType,
         },
     },
     dto::{
@@ -40,7 +40,7 @@ impl BoardWrapper {
     pub fn get_ai_move(&mut self, depth: u8) -> (i32, PieceMoveDTO) {
         let result = self.mini_max.make_move(&mut self.board, depth);
 
-        (result.0, piece_move_dto_from_piece_move(result.1))
+        (result.0, piece_move_dto_from_piece_move(result.1.clone()))
     }
 
     pub fn get_move_generation_count(&mut self, depth: usize) -> u64 {
@@ -61,7 +61,7 @@ impl BoardWrapper {
     pub fn get_available_moves(&mut self) -> Vec<PieceDTO> {
         let mut pieces: Vec<PieceDTO> = Vec::new();
 
-        for piece in self.board.get_pieces().iter().flatten() {
+        for piece in self.board.get_pieces().iter() {
             pieces.push(PieceDTO::new(
                 piece.get_fen(),
                 piece.get_immutable_moves(),
@@ -102,7 +102,7 @@ fn move_generation_count(board: &mut Board, depth: usize, track_moves: bool) -> 
 
     let mut num_positions: u64 = 0;
 
-    for piece in pieces.iter().flatten() {
+    for piece in pieces.iter() {
         if (piece.get_value() == PieceType::Empty as i8)
             || (piece.is_white() != board.is_white_move())
         {
@@ -110,16 +110,16 @@ fn move_generation_count(board: &mut Board, depth: usize, track_moves: bool) -> 
         }
 
         for piece_move in piece.get_immutable_moves().iter() {
-            let mut promotion_char_options = vec![piece_fen_from_value(piece_move.promotion_type)];
+            let mut promotion_char_options = vec![piece_move.promotion_type];
 
             if piece_move.is_promotion {
-                promotion_char_options = get_promotion_char_options(piece.is_white());
+                promotion_char_options = get_promotion_options(piece.is_white());
             }
 
             let mut piece_move = piece_move.clone();
 
             for promotion_option in promotion_char_options {
-                piece_move.promotion_type = piece_value_from_fen(&promotion_option);
+                piece_move.promotion_type = promotion_option;
 
                 board.move_piece(piece_move.clone());
 

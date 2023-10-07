@@ -2,8 +2,7 @@ use crate::{
     common::{
         piece_move::PieceMove,
         piece_utils::{
-            get_piece_worth, get_promotion_char_options, is_white_piece, piece_fen_from_value,
-            piece_value_from_fen, PieceType,
+            get_piece_worth, get_promotion_options, is_white_piece, PieceType,
         },
     },
     game::board::Board,
@@ -19,8 +18,6 @@ impl MiniMax {
     }
 
     pub fn make_move(&mut self, board: &mut Board, depth: u8) -> (i32, PieceMove) {
-        // self.states_checked = 0;
-
         let result = self.minimax(board, depth, true);
 
         println!("Evaluated {} states", result.2);
@@ -29,8 +26,6 @@ impl MiniMax {
     }
 
     fn minimax(&mut self, board: &mut Board, depth: u8, max: bool) -> (i32, PieceMove, u64) {
-        // self.states_checked += 1;
-
         if depth == 0 || board.is_game_finished() {
             return (self.get_board_value(board), PieceMove::new(-1, -1), 1);
         }
@@ -39,10 +34,9 @@ impl MiniMax {
         let mut value = if max { i32::MIN } else { i32::MAX };
         let mut best_move: PieceMove = PieceMove::new(-1, -1);
 
-        let pieces = board.get_pieces().clone();
+        let pieces = board.get_pieces();
 
-        // get_available_moves should only return the pieces, not empties
-        for piece in pieces.iter().flatten() {
+        for piece in pieces.iter() {
             if (piece.get_value() == PieceType::Empty as i8)
                 || (piece.is_white()) != board.is_white_move()
             {
@@ -50,19 +44,18 @@ impl MiniMax {
             }
 
             for piece_move in piece.get_immutable_moves().iter() {
-                let mut promotion_char_options =
-                    vec![piece_fen_from_value(piece_move.promotion_type)];
+                let mut promotion_options = vec![piece_move.promotion_type];
 
                 if piece_move.is_promotion {
-                    promotion_char_options = get_promotion_char_options(piece.is_white());
+                    promotion_options = get_promotion_options(piece.is_white());
                 }
 
-                let mut piece_move = piece_move.clone();
+                let mut piece_move_clone = piece_move.clone();
 
-                for promotion_option in promotion_char_options {
-                    piece_move.promotion_type = piece_value_from_fen(&promotion_option);
+                for promotion_option in promotion_options {
+                    piece_move_clone.promotion_type = promotion_option;
 
-                    board.move_piece(piece_move.clone());
+                    board.move_piece(piece_move_clone.clone());
 
                     if max {
                         let current_move_value = self.minimax(board, depth - 1, false);

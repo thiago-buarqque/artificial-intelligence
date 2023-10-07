@@ -59,7 +59,7 @@ impl MoveGenerator {
 
     // TODO from a state to the next one, only one piece moves. No need to regenreate all
     // pieces moves, only those who moved or where attacking the square where was the piece
-    pub fn get_available_moves(&mut self, board: &mut Board) -> Vec<Option<BoardPiece>> {
+    pub fn get_available_moves(&mut self, board: &mut Board) -> Vec<BoardPiece> {
         let (black_moves, white_moves, mut pieces) = self.generate_pieces_moves(board);
 
         // Only the two kings on the board
@@ -78,10 +78,10 @@ impl MoveGenerator {
     fn generate_pieces_moves(
         &mut self,
         board: &mut Board,
-    ) -> (Vec<PieceMove>, Vec<PieceMove>, Vec<Option<BoardPiece>>) {
+    ) -> (Vec<PieceMove>, Vec<PieceMove>, Vec<BoardPiece>) {
         let mut black_moves: Vec<PieceMove> = Vec::new();
         let mut white_moves: Vec<PieceMove> = Vec::new();
-        let mut pieces: Vec<Option<BoardPiece>> = vec![];
+        let mut pieces: Vec<BoardPiece> = vec![];
 
         let squares = board.get_state_reference().squares();
 
@@ -100,13 +100,13 @@ impl MoveGenerator {
                 }
             }
 
-            pieces.push(Some(BoardPiece::new(
+            pieces.push(BoardPiece::new(
                 piece_fen_from_value(piece_value),
                 moves.clone(),
                 position as i8,
                 piece_value,
                 white_piece,
-            )));
+            ));
         }
         (black_moves, white_moves, pieces)
     }
@@ -114,7 +114,7 @@ impl MoveGenerator {
     fn get_king_available_moves(
         &self,
         black_moves: &[PieceMove],
-        board_pieces: &mut [Option<BoardPiece>],
+        board_pieces: &mut [BoardPiece],
         white_moves: &[PieceMove],
     ) {
         let white_king_position = self.board_state.get_white_king_position();
@@ -133,25 +133,20 @@ impl MoveGenerator {
         black_king_moves.retain(|x| !common_moves.contains(x));
 
         // TODO the king should always be present or am i going to allow FEN with no kings?
-        if let Some(ref mut white_king) = board_pieces[white_king_position as usize] {
-            white_king.set_moves(white_king_moves)
-        }
-
-        if let Some(ref mut black_king) = board_pieces[black_king_position as usize] {
-            black_king.set_moves(black_king_moves)
-        }
+        board_pieces[white_king_position as usize].set_moves(white_king_moves);
+        board_pieces[black_king_position as usize].set_moves(black_king_moves);
     }
 
     pub fn remove_locked_and_invalid_moves(
         &mut self,
-        pieces: &mut [Option<BoardPiece>],
+        pieces: &mut [BoardPiece],
         board: &mut Board,
     ) {
         let (is_white_move, king_position) = self.determine_move_and_king_position();
         let mut player_moves: Vec<PieceMove> = Vec::new();
         let is_king_in_check = self.is_king_in_check(pieces, king_position, is_white_move);
 
-        for board_piece in pieces.iter_mut().flatten() {
+        for board_piece in pieces.iter_mut() {
             self.filter_invalid_moves(
                 board_piece,
                 king_position,
@@ -180,11 +175,11 @@ impl MoveGenerator {
 
     fn is_king_in_check(
         &self,
-        pieces: &[Option<BoardPiece>],
+        pieces: &[BoardPiece],
         king_position: i8,
         is_white_move: bool,
     ) -> bool {
-        for board_piece in pieces.iter().flatten() {
+        for board_piece in pieces.iter() {
             if board_piece.get_value() == PieceType::Empty as i8 {
                 continue;
             }
@@ -214,7 +209,7 @@ impl MoveGenerator {
             return;
         }
 
-        let mut invalid_moves = Vec::new();
+        let mut valid_moves = Vec::new();
 
         for piece_move in board_piece.get_immutable_moves() {
             let is_king = get_piece_type(piece_value) == PieceType::King;
@@ -223,15 +218,13 @@ impl MoveGenerator {
                 piece_move,
                 king_position,
                 board,
-                &mut invalid_moves,
+                &mut valid_moves,
                 is_king,
                 piece_value,
             );
         }
 
-        board_piece
-            .get_moves()
-            .retain(|x| !invalid_moves.contains(x));
+        board_piece.set_moves(valid_moves);
 
         player_moves.extend(board_piece.get_immutable_moves());
     }
@@ -241,7 +234,7 @@ impl MoveGenerator {
         piece_move: PieceMove,
         king_position: i8,
         board: &mut Board,
-        invalid_moves: &mut Vec<PieceMove>,
+        valid_moves: &mut Vec<PieceMove>,
         is_king: bool,
         piece_value: i8,
     ) {
@@ -258,8 +251,8 @@ impl MoveGenerator {
 
         board.move_piece(piece_move_clone);
 
-        if self.is_king_attacked_on_state(target_position, board.get_state_clone()) {
-            invalid_moves.push(piece_move);
+        if !self.is_king_attacked_on_state(target_position, board.get_state_clone()) {
+            valid_moves.push(piece_move);
         }
 
         board.undo_move();
@@ -423,12 +416,6 @@ impl MoveGenerator {
         let able_to_castle_king_side =
             self.board_state.is_able_to_castle_king_side(is_white_king);
 
-        let pawn_value = if is_white_king {
-            PieceColor::Black as i8 | PieceType::Pawn as i8
-        } else {
-            PieceColor::White as i8 | PieceType::Pawn as i8
-        };
-
         // Check for queen side castling
         if able_to_castle_queen_side
             && is_path_clear(
@@ -443,7 +430,6 @@ impl MoveGenerator {
                 king_position,
                 false,
                 king_position - 2,
-                pawn_value,
                 opponent_moves,
                 moves,
             );
@@ -463,7 +449,6 @@ impl MoveGenerator {
                 king_position,
                 true,
                 king_position + 2,
-                pawn_value,
                 opponent_moves,
                 moves,
             );
@@ -476,7 +461,6 @@ impl MoveGenerator {
         king_position: i8,
         is_king_side: bool,
         new_position: i8,
-        pawn_value: i8,
         opponent_moves: &[PieceMove],
         moves: &mut Vec<PieceMove>,
     ) {
@@ -489,12 +473,18 @@ impl MoveGenerator {
             let offset = if is_white_king { -8 } else { 8 };
 
             let frontal_pawn_position = king_position + offset;
-            let mut side_diagonal_pawn_position = if is_king_side {
+            let side_diagonal_pawn_position = if is_king_side {
                 frontal_pawn_position + 2
             } else {
                 frontal_pawn_position - 2
             };
 
+
+            let pawn_value = if is_white_king {
+                PieceColor::Black as i8 | PieceType::Pawn as i8
+            } else {
+                PieceColor::White as i8 | PieceType::Pawn as i8
+            };
 
             // Check if there is pawn attacking the side squares
             if self.board_state.get_piece(frontal_pawn_position) != pawn_value

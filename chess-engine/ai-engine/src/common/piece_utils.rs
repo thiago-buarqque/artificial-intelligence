@@ -81,11 +81,12 @@ pub fn piece_fen_from_value(piece_value: i8) -> char {
     }
 }
 
-pub fn get_promotion_char_options(white: bool) -> Vec<char> {
+pub fn get_promotion_options(white: bool) -> Vec<i8> {
     if !white {
-        return vec!['q', 'r', 'b', 'n'];
+        return vec![9, 11, 13, 14]
     }
-    vec!['Q', 'R', 'B', 'N']
+
+    vec![17, 19, 21, 22]
 }
 
 pub fn get_piece_type(piece_value: i8) -> PieceType {

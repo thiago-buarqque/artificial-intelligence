@@ -28,7 +28,7 @@ impl Board {
         MoveGenerator::new(self.state.clone())
     }
 
-    pub fn get_pieces(&mut self) -> Vec<Option<BoardPiece>> {
+    pub fn get_pieces(&mut self) -> Vec<BoardPiece> {
         let mut move_generator = self.get_move_generator();
 
         move_generator.get_available_moves(self)

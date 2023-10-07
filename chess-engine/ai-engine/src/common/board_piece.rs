@@ -24,9 +24,9 @@ impl BoardPiece {
         self.fen
     }
 
-    pub fn get_moves(&mut self) -> &mut Vec<PieceMove> {
-        &mut self.moves
-    }
+    // pub fn get_moves(&mut self) -> &mut Vec<PieceMove> {
+    //     &mut self.moves
+    // }
 
     pub fn set_moves(&mut self, moves: Vec<PieceMove>) {
         self.moves = moves
