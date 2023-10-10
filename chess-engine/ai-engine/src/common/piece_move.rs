@@ -5,30 +5,33 @@ use super::piece_utils::{piece_value_from_fen, PieceType};
 #[derive(Debug, Clone, PartialEq)]
 pub struct PieceMove {
     pub from_position: i8,
-    pub to_position: i8,
-    pub promotion_type: i8,
-    pub is_promotion: bool,
     pub is_en_passant: bool,
+    pub is_promotion: bool,
+    pub piece_value: i8,
+    pub promotion_type: i8,
+    pub to_position: i8,
 }
 
 impl PieceMove {
-    pub fn new(from: i8, to: i8) -> Self {
+    pub fn new(from: i8, piece_value: i8, to: i8) -> Self {
         Self {
             from_position: from,
-            to_position: to,
-            promotion_type: PieceType::Empty as i8,
-            is_promotion: false,
             is_en_passant: false,
+            is_promotion: false,
+            piece_value,
+            promotion_type: PieceType::Empty as i8,
+            to_position: to,
         }
     }
 
     pub fn from_dto(piece_move_dto: PieceMoveDTO) -> Self {
         Self {
             from_position: piece_move_dto.from_position,
-            to_position: piece_move_dto.to_position,
-            promotion_type: piece_value_from_fen(&piece_move_dto.promotion_type),
-            is_promotion: piece_move_dto.is_promotion,
             is_en_passant: piece_move_dto.is_en_passant,
+            is_promotion: piece_move_dto.is_promotion,
+            piece_value: piece_move_dto.piece_value,
+            promotion_type: piece_value_from_fen(&piece_move_dto.promotion_type),
+            to_position: piece_move_dto.to_position,
         }
     }
 
@@ -36,6 +39,7 @@ impl PieceMove {
         PieceMove {
             from_position: self.from_position,
             to_position: self.to_position,
+            piece_value: self.piece_value,
             promotion_type: self.promotion_type,
             is_promotion: self.is_promotion,
             is_en_passant: self.is_en_passant,

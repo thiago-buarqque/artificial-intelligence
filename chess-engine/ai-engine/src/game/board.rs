@@ -73,16 +73,16 @@ impl Board {
         }
     }
 
-    pub fn get_winner_fen(&self) -> String {
+    pub fn get_winner_fen(&self) -> char {
         match self.state.winner() {
-            x if x == (PieceColor::White as i8) => String::from("w"),
-            x if x == (PieceColor::Black as i8) => String::from("b"),
-            x if x == (PieceColor::Black as i8 | PieceColor::White as i8) => String::from("bw"),
-            _ => String::from("-"),
+            x if x == (PieceColor::White as i8) => 'w',
+            x if x == (PieceColor::Black as i8) => 'b',
+            x if x == (PieceColor::Black as i8 | PieceColor::White as i8) => 'd', // draw
+            _ => '-',
         }
     }
 
-    pub fn move_piece(&mut self, piece_move: PieceMove) -> Result<(), &'static str> {
+    pub fn move_piece(&mut self, piece_move: &PieceMove) -> Result<(), &'static str> {
         self.state_history.push(self.state.clone());
 
         self._move_piece(piece_move, false)
@@ -100,7 +100,7 @@ impl Board {
 
     fn _move_piece(
         &mut self,
-        piece_move: PieceMove,
+        piece_move: &PieceMove,
         rook_castling: bool,
     ) -> Result<(), &'static str> {
         let from_index = piece_move.from_position;
@@ -173,7 +173,7 @@ impl Board {
             && ((white_piece && !self.state.white_king_moved())
                 || (!white_piece && !self.state.black_king_moved()))
         {
-            self.castle(from_index, to_index, white_piece);
+            self.castle(from_index, self.state.get_piece(moving_piece), to_index, white_piece);
         }
 
         if white_piece {
@@ -186,6 +186,7 @@ impl Board {
     fn castle(
         &mut self,
         from_index: i8,
+        rook_value: i8,
         to_index: i8,
         white_piece: bool,
     ) -> Result<(), &'static str> {
@@ -212,7 +213,9 @@ impl Board {
             self.state.set_black_able_to_king_side_castle(false);
         }
 
-        self._move_piece(PieceMove::new(rook_position, new_rook_position), true)
+        let rook_move = PieceMove::new(rook_position, rook_value, new_rook_position);
+
+        self._move_piece(&rook_move, true)
     }
 
     fn capture_en_passant(&mut self, moving_piece: i8) {
@@ -293,7 +296,7 @@ impl Board {
     }
 
     pub fn is_game_finished(&self) -> bool {
-        self.get_winner_fen() != "-"
+        self.get_winner_fen() != '-'
     }
 
     pub fn get_squares(&self) -> [i8; 64] {

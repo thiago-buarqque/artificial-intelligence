@@ -23,7 +23,7 @@ impl PieceDTO {
             fen,
             moves: moves
                 .iter()
-                .map(|_move| piece_move_dto_from_piece_move(_move.clone()))
+                .map(|_move| piece_move_dto_from_piece_move(&_move))
                 .collect(),
             position,
             white,

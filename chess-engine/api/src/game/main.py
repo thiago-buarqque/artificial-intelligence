@@ -48,19 +48,15 @@ def move_piece():
     # Elapsed time: 3127.3396015167236ms
     # 330, (0, 1)
 
+    # 83559.10587310791
+    # 83519.77705955505
+
     # Ai move
     # if board.get_winner_fen() == "-":
     #     start = time.time()
     #     move_value, move = \
     #         board.get_ai_move(4)
     #
-    #     # Evaluated 3553501 states
-    #     # Elapsed time: 3095.41654586792
-    #     # 330, (0, 1)
-    #
-    #     # Evaluated 10191929states
-    #     # Elapsed time: 15598.281860351562
-    #     # 0, (1, 16)
     #     end = time.time()
     #     print(f"Elapsed time: {(end - start) * 1000}")
     #     print(f"{move_value}, "

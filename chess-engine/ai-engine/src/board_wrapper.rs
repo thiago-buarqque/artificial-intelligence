@@ -6,7 +6,7 @@ use crate::{
         contants::INITIAL_FEN,
         piece_move::PieceMove,
         piece_utils::{
-            get_promotion_options, piece_fen_from_value, piece_value_from_fen, PieceType,
+            get_promotion_options, PieceType,
         },
     },
     dto::{
@@ -40,7 +40,7 @@ impl BoardWrapper {
     pub fn get_ai_move(&mut self, depth: u8) -> (i32, PieceMoveDTO) {
         let result = self.mini_max.make_move(&mut self.board, depth);
 
-        (result.0, piece_move_dto_from_piece_move(result.1.clone()))
+        (result.0, piece_move_dto_from_piece_move(&result.1))
     }
 
     pub fn get_move_generation_count(&mut self, depth: usize) -> u64 {
@@ -73,7 +73,7 @@ impl BoardWrapper {
         pieces
     }
 
-    pub fn get_winner_fen(&self) -> String {
+    pub fn get_winner_fen(&self) -> char {
         self.board.get_winner_fen()
     }
 
@@ -86,7 +86,9 @@ impl BoardWrapper {
     }
 
     pub fn move_piece(&mut self, piece_move: PieceMoveDTO) -> PyResult<()> {
-        match self.board.move_piece(PieceMove::from_dto(piece_move)) {
+        let _move = PieceMove::from_dto(piece_move);
+
+        match self.board.move_piece(&_move) {
             Ok(()) => Ok(()),
             Err(error) => Err(exceptions::PyValueError::new_err(error)),
         }
@@ -121,7 +123,7 @@ fn move_generation_count(board: &mut Board, depth: usize, track_moves: bool) -> 
             for promotion_option in promotion_char_options {
                 piece_move.promotion_type = promotion_option;
 
-                board.move_piece(piece_move.clone());
+                board.move_piece(&piece_move);
 
                 let moves_count = move_generation_count(board, depth - 1, false);
                 num_positions += moves_count;
@@ -130,12 +132,12 @@ fn move_generation_count(board: &mut Board, depth: usize, track_moves: bool) -> 
                     if piece_move.is_promotion {
                         println!(
                             "{}{}: {}",
-                            get_move_string(piece_move.clone()),
+                            get_move_char(&piece_move),
                             promotion_option.clone(),
                             moves_count
                         )
                     } else {
-                        println!("{}: {}", get_move_string(piece_move.clone()), moves_count)
+                        println!("{}: {}", get_move_char(&piece_move), moves_count)
                     }
                 }
 
@@ -155,8 +157,8 @@ fn get_position_column_number(position: i8) -> usize {
     (position - (position - (position % 8))) as usize
 }
 
-fn get_move_string(piece_move: PieceMove) -> String {
-    let columns = ["a", "b", "c", "d", "e", "f", "g", "h"];
+fn get_move_char(piece_move: &PieceMove) -> String {
+    let columns = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'];
 
     let from_position_line = get_position_line_number(piece_move.from_position);
 

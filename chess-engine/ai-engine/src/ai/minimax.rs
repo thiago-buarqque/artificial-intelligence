@@ -27,12 +27,12 @@ impl MiniMax {
 
     fn minimax(&mut self, board: &mut Board, depth: u8, max: bool) -> (i32, PieceMove, u64) {
         if depth == 0 || board.is_game_finished() {
-            return (self.get_board_value(board), PieceMove::new(-1, -1), 1);
+            return (self.get_board_value(board), PieceMove::new(-1, 0, -1), 1);
         }
 
         let mut moves_count = 0;
         let mut value = if max { i32::MIN } else { i32::MAX };
-        let mut best_move: PieceMove = PieceMove::new(-1, -1);
+        let mut best_move: PieceMove = PieceMove::new(-1, 0, -1);
 
         let pieces = board.get_pieces();
 
@@ -55,7 +55,7 @@ impl MiniMax {
                 for promotion_option in promotion_options {
                     piece_move_clone.promotion_type = promotion_option;
 
-                    board.move_piece(piece_move_clone.clone());
+                    board.move_piece(&piece_move_clone);
 
                     if max {
                         let current_move_value = self.minimax(board, depth - 1, false);
