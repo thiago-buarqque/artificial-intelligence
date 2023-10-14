@@ -298,8 +298,4 @@ impl Board {
     pub fn is_game_finished(&self) -> bool {
         self.get_winner_fen() != '-'
     }
-
-    pub fn get_squares(&self) -> [i8; 64] {
-        *self.state.squares()
-    }
 }

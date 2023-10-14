@@ -28,9 +28,9 @@ impl BoardPiece {
 //         &mut self.moves
 //     }
 
-//    pub fn get_moves_reference(&mut self) -> &Vec<PieceMove> {
-//         &self.moves
-//     }
+   pub fn get_moves_reference(&self) -> &Vec<PieceMove> {
+        &self.moves
+    }
 
     pub fn set_moves(&mut self, moves: Vec<PieceMove>) {
         self.moves = moves

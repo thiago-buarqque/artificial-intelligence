@@ -13,7 +13,8 @@ use super::{
         BLACK_KING_ROOK_POS, BLACK_QUEEN_ROOK_POS, WHITE_KING_ROOK_POS, WHITE_QUEEN_ROOK_POS,
     },
     move_generator_helper::{
-        get_king_move, get_knight_move, is_path_clear, is_pawn_first_move, position_is_not_attacked,
+        get_adjacent_position, get_knight_move, is_path_clear, is_pawn_first_move,
+        position_is_not_attacked,
     },
 };
 
@@ -338,14 +339,14 @@ impl MoveGenerator {
         king_position: i8,
     ) -> Vec<PieceMove> {
         let positions = [
-            get_king_move(king_position, king_position - 1),
-            get_king_move(king_position, king_position + 1),
-            get_king_move(king_position, king_position - 9),
-            get_king_move(king_position, king_position - 8),
-            get_king_move(king_position, king_position - 7),
-            get_king_move(king_position, king_position + 7),
-            get_king_move(king_position, king_position + 8),
-            get_king_move(king_position, king_position + 9),
+            get_adjacent_position(king_position, king_position - 1),
+            get_adjacent_position(king_position, king_position + 1),
+            get_adjacent_position(king_position, king_position - 9),
+            get_adjacent_position(king_position, king_position - 8),
+            get_adjacent_position(king_position, king_position - 7),
+            get_adjacent_position(king_position, king_position + 7),
+            get_adjacent_position(king_position, king_position + 8),
+            get_adjacent_position(king_position, king_position + 9),
         ];
 
         let mut moves: Vec<PieceMove> = Vec::new();
@@ -403,7 +404,7 @@ impl MoveGenerator {
         };
 
         if has_king_moved {
-            return;            
+            return;
         }
 
         let (queen_side_rook_position, king_side_rook_position) = if is_white_king {
@@ -414,8 +415,7 @@ impl MoveGenerator {
 
         let able_to_castle_queen_side =
             self.board_state.is_able_to_castle_queen_side(is_white_king);
-        let able_to_castle_king_side =
-            self.board_state.is_able_to_castle_king_side(is_white_king);
+        let able_to_castle_king_side = self.board_state.is_able_to_castle_king_side(is_white_king);
 
         // Check for queen side castling
         if able_to_castle_queen_side
@@ -482,7 +482,6 @@ impl MoveGenerator {
             } else {
                 frontal_pawn_position - 2
             };
-
 
             let pawn_value = if is_white_king {
                 PieceColor::Black as i8 | PieceType::Pawn as i8
@@ -615,7 +614,13 @@ impl MoveGenerator {
             white_piece,
         );
 
-        self.generate_pawn_capturing_moves(&mut moves, next_line_position, pawn_value, position, white_piece);
+        self.generate_pawn_capturing_moves(
+            &mut moves,
+            next_line_position,
+            pawn_value,
+            position,
+            white_piece,
+        );
 
         self.generate_en_passant_moves(&mut moves, offset, position, pawn_value, white_piece);
 

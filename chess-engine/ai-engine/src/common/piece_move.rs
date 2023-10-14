@@ -7,6 +7,7 @@ pub struct PieceMove {
     pub from_position: i8,
     pub is_en_passant: bool,
     pub is_promotion: bool,
+    pub move_worth: i32,
     pub piece_value: i8,
     pub promotion_type: i8,
     pub to_position: i8,
@@ -18,6 +19,7 @@ impl PieceMove {
             from_position: from,
             is_en_passant: false,
             is_promotion: false,
+            move_worth: 0,
             piece_value,
             promotion_type: PieceType::Empty as i8,
             to_position: to,
@@ -29,6 +31,7 @@ impl PieceMove {
             from_position: piece_move_dto.from_position,
             is_en_passant: piece_move_dto.is_en_passant,
             is_promotion: piece_move_dto.is_promotion,
+            move_worth: 0,
             piece_value: piece_move_dto.piece_value,
             promotion_type: piece_value_from_fen(&piece_move_dto.promotion_type),
             to_position: piece_move_dto.to_position,
@@ -38,11 +41,12 @@ impl PieceMove {
     pub fn clone(&self) -> PieceMove {
         PieceMove {
             from_position: self.from_position,
-            to_position: self.to_position,
+            is_en_passant: self.is_en_passant,
+            is_promotion: self.is_promotion,
+            move_worth: self.move_worth,
             piece_value: self.piece_value,
             promotion_type: self.promotion_type,
-            is_promotion: self.is_promotion,
-            is_en_passant: self.is_en_passant,
+            to_position: self.to_position,
         }
     }
 

@@ -104,12 +104,12 @@ pub fn get_piece_type(piece_value: i8) -> PieceType {
 
 pub fn get_piece_worth(piece_value: i8) -> i32 {
     match piece_value {
-        17 | 9 => 330,
-        18 | 10 => 20000,
-        19 | 11 => 320,
-        20 | 12 => 100,
-        21 | 13 => 900,
-        22 | 14 => 500,
+        17 | 9 => 3, // Bishop
+        18 | 10 => 200, // King
+        19 | 11 => 3, // Knight
+        20 | 12 => 1, // Pawn
+        21 | 13 => 9, // Queen
+        22 | 14 => 5, // Rook
         _ => 0,
     }
 }

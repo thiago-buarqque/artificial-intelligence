@@ -31,7 +31,7 @@ pub fn is_path_clear(board_state: &BoardState, start: i8, end: i8, step: i8) -> 
     true
 }
 
-pub fn get_king_move(current_position: i8, new_position: i8) -> i8 {
+pub fn get_adjacent_position(current_position: i8, new_position: i8) -> i8 {
     if !(0..=63).contains(&new_position) {
         return -1;
     }

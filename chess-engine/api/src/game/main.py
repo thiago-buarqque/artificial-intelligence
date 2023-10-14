@@ -52,18 +52,18 @@ def move_piece():
     # 83519.77705955505
 
     # Ai move
-    # if board.get_winner_fen() == "-":
-    #     start = time.time()
-    #     move_value, move = \
-    #         board.get_ai_move(4)
-    #
-    #     end = time.time()
-    #     print(f"Elapsed time: {(end - start) * 1000}")
-    #     print(f"{move_value}, "
-    #           f"({move.from_position}, {move.to_position})")
-    #
-    #     if move.from_position != -1 and move.to_position != -1:
-    #         board.move_piece(move)
+    if board.get_winner_fen() == "-":
+        start = time.time()
+        move_value, move = \
+            board.get_ai_move(6)
+
+        end = time.time()
+        print(f"Elapsed time: {(end - start)}")
+        print(f"{move_value}, "
+              f"({move.from_position}, {move.to_position})")
+
+        if move.from_position != -1 and move.to_position != -1:
+            board.move_piece(move)
 
     return get_board()
 

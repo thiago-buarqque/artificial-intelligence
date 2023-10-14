@@ -16,6 +16,7 @@ export type TPiece = {
 export type TMove = {
   fromPosition: number;
   isEnPassant: boolean;
+  piece_value: number;
   promotionType: string;
   isPromotion: boolean;
   toPosition: number;

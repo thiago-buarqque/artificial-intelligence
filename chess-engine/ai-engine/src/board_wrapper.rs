@@ -1,7 +1,8 @@
 use pyo3::{exceptions, prelude::*};
+use std::time::Instant;
 
 use crate::{
-    ai::minimax::MiniMax,
+    ai::negamax::Negamax,
     common::{
         contants::INITIAL_FEN,
         piece_move::PieceMove,
@@ -19,7 +20,7 @@ use crate::{
 #[pyclass]
 pub struct BoardWrapper {
     board: Board,
-    mini_max: MiniMax,
+    mini_max: Negamax,
 }
 
 // is this a facade?
@@ -33,12 +34,18 @@ impl BoardWrapper {
 
         BoardWrapper {
             board,
-            mini_max: MiniMax::new(),
+            mini_max: Negamax::new(),
         }
     }
 
     pub fn get_ai_move(&mut self, depth: u8) -> (i32, PieceMoveDTO) {
+        let start = Instant::now(); // Capture the start time
+
         let result = self.mini_max.make_move(&mut self.board, depth);
+        
+        let duration = start.elapsed(); // Calculate the elapsed time
+
+        println!("Time elapsed is: {:?}", duration);
 
         (result.0, piece_move_dto_from_piece_move(&result.1))
     }
