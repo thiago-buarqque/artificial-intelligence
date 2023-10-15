@@ -1,6 +1,13 @@
-use crate::{common::{piece_move::PieceMove, board_piece::BoardPiece, piece_utils::{PieceType, get_piece_worth}}, game::board::Board};
+use crate::{
+    common::{
+        board_piece::BoardPiece,
+        piece_move::PieceMove,
+        piece_utils::{get_piece_worth, PieceType},
+    },
+    game::board::Board,
+};
 
-pub fn get_ordered_moves(board: &Board, pieces: Vec<BoardPiece>) -> Vec<PieceMove> {
+pub fn get_ordered_moves(board: &Board, max: bool, pieces: Vec<BoardPiece>) -> Vec<PieceMove> {
     let mut moves: Vec<PieceMove> = pieces
         .iter()
         .filter(|piece| piece.is_white() == board.is_white_move())
@@ -10,7 +17,7 @@ pub fn get_ordered_moves(board: &Board, pieces: Vec<BoardPiece>) -> Vec<PieceMov
     let attacked_positions: Vec<i8> = pieces
         .iter()
         .filter(|piece| piece.is_white() != board.is_white_move())
-        .flat_map(|piece| piece.get_immutable_moves())
+        .flat_map(|piece| piece.get_moves_reference())
         .map(|_move| _move.to_position)
         .collect();
 
@@ -22,7 +29,7 @@ pub fn get_ordered_moves(board: &Board, pieces: Vec<BoardPiece>) -> Vec<PieceMov
 
         // Capturing move
         if target_piece != PieceType::Empty as i8 {
-            _move.move_worth += get_piece_worth(target_piece)
+            _move.move_worth = 9 * get_piece_worth(target_piece) - get_piece_worth(moving_piece)
         }
 
         if _move.is_promotion {
@@ -35,12 +42,13 @@ pub fn get_ordered_moves(board: &Board, pieces: Vec<BoardPiece>) -> Vec<PieceMov
         }
     }
 
-    // if max {
-    moves.sort_by_key(|k| std::cmp::Reverse(k.move_worth));
-    // } else {
-    //     moves.sort_by_key(|k| k.move_worth);
-    // }
-    // moves.sort_by_key(|_move| _move.move_worth);
+    // TODO order also based on the hashmap with previous generated states
+
+    if max {
+        moves.sort_by_key(|k| std::cmp::Reverse(k.move_worth));
+    } else {
+        moves.sort_by_key(|k| k.move_worth);
+    }
 
     moves
 }

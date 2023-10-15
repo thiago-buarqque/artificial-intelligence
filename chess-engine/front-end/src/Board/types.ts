@@ -3,7 +3,7 @@ export type TBoard = {
   pieces: TPiece[];
   whiteCaptures: string[];
   whiteMove: boolean;
-  winner: "-" | "b" | "w" | "bw";
+  winner: "-" | "b" | "w" | "d";
 };
 
 export type TPiece = {

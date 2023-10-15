@@ -220,7 +220,7 @@ const Board = () => {
     // console.log(board);
 
     if (board.winner !== "-") {
-      if (board.winner === "bw") {
+      if (board.winner === "d") {
         alert("Draw");
       } else {
         alert(board.winner === "w" ? `Humano venceu!` : `IA venceu!`);

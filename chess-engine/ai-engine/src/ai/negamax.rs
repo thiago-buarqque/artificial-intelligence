@@ -1,3 +1,10 @@
+use std::{
+    ops::Add,
+    sync::{Arc, Mutex},
+};
+
+use rayon::prelude::{IntoParallelRefMutIterator, ParallelIterator};
+
 use crate::{
     common::{
         board_piece::BoardPiece,
@@ -9,49 +16,111 @@ use crate::{
 
 use super::ai_utils::get_ordered_moves;
 
-pub struct Negamax {
-    pub states_checked: usize,
-}
+pub struct Negamax {}
 
 impl Negamax {
     pub fn new() -> Self {
-        Negamax { states_checked: 0 }
+        Negamax {}
     }
 
     pub fn make_move(&mut self, board: &mut Board, depth: u8) -> (i32, PieceMove) {
-        let result = self.negamax(board, i32::MIN, i32::MAX, depth);
+        let pieces: Vec<BoardPiece> = board.get_pieces();
 
-        println!("Evaluated {} states", result.2);
+        let best_move = Arc::new(Mutex::new(PieceMove::new(-1, 0, -1)));
+        let moves_count: Arc<Mutex<u64>> = Arc::new(Mutex::new(0));
+        let value = Arc::new(Mutex::new(i32::MIN));
 
-        (result.0, result.1)
+        let mut moves: Vec<PieceMove> = get_ordered_moves(board, true, pieces);
+
+        moves.par_iter_mut().for_each(|_move| {
+            let mut _board = board.clone();
+            self.search_parallel(
+                _move,
+                &mut _board,
+                depth - 1,
+                &value,
+                &moves_count,
+                &best_move,
+            );
+        });
+
+        println!("Evaluated {} states", moves_count.lock().unwrap());
+
+        let locked_value = value.lock().unwrap();
+
+        let locked_best_move = best_move.lock().unwrap();
+
+        (locked_value.to_owned(), locked_best_move.to_owned())
+    }
+
+    fn search_parallel(
+        &self,
+        _move: &mut PieceMove,
+        board: &mut Board,
+        depth: u8,
+        value: &Arc<Mutex<i32>>,
+        moves_count: &Arc<Mutex<u64>>,
+        best_move: &Arc<Mutex<PieceMove>>,
+    ) {
+        let mut promotion_options = vec![_move.promotion_type];
+
+        if _move.is_promotion {
+            promotion_options = get_promotion_options(is_white_piece(_move.piece_value));
+        }
+
+        for promotion_option in promotion_options {
+            _move.promotion_type = promotion_option;
+
+            board.move_piece(_move);
+
+            let node_results = self.negamax(board, i32::MIN, i32::MAX, false, depth - 1);
+
+            let mut locked_moves_count = moves_count.lock().unwrap();
+
+            *locked_moves_count = locked_moves_count.add(node_results.1);
+
+            drop(locked_moves_count);
+
+            let mut locked_value = value.lock().unwrap();
+
+            if -node_results.0 > *locked_value {
+                *locked_value = -node_results.0;
+
+                let mut locked_best_move = best_move.lock().unwrap();
+
+                *locked_best_move = _move.clone();
+
+                drop(locked_best_move)
+            }
+
+            drop(locked_value);
+
+            board.undo_move();
+        }
     }
 
     fn negamax(
-        &mut self,
+        &self,
         board: &mut Board,
         _alpha: i32,
         _beta: i32,
+        max: bool,
         depth: u8,
-    ) -> (i32, PieceMove, u64) {
+    ) -> (i32, u64) {
         let mut alpha = _alpha;
         let beta = _beta;
 
         let pieces: Vec<BoardPiece> = board.get_pieces();
 
         if depth == 0 || board.is_game_finished() {
-            // Start a new search the look for positions where doesn't have captures
-            return (
-                self.get_board_value(board, &pieces),
-                PieceMove::new(-1, 0, -1),
-                1,
-            );
+            // Start a new search that look for positions with no captures available
+            return (self.get_board_value(board, &pieces), 1);
         }
 
-        let mut best_move: PieceMove = PieceMove::new(-1, 0, -1);
         let mut moves_count = 0;
         let mut value = i32::MIN;
 
-        let mut moves: Vec<PieceMove> = get_ordered_moves(board, pieces);
+        let mut moves: Vec<PieceMove> = get_ordered_moves(board, max, pieces);
 
         'piece_move_loop: for _move in moves.iter_mut() {
             let mut promotion_options = vec![_move.promotion_type];
@@ -65,13 +134,12 @@ impl Negamax {
 
                 board.move_piece(_move);
 
-                let node_results = self.negamax(board, -beta, -alpha, depth - 1);
+                let node_results = self.negamax(board, -beta, -alpha, !max, depth - 1);
 
-                moves_count += node_results.2;
+                moves_count += node_results.1;
 
                 if -node_results.0 > value {
                     value = -node_results.0;
-                    best_move = _move.clone();
                 }
 
                 alpha = alpha.max(value);
@@ -84,10 +152,11 @@ impl Negamax {
             }
         }
 
-        (value, best_move, moves_count)
+        (value, moves_count)
     }
 
     fn get_board_value(&self, board: &mut Board, pieces: &[BoardPiece]) -> i32 {
+        // The evaluation
         // f(p) = 200(K-K')
         //         + 9(Q-Q')
         //         + 5(R-R')
@@ -95,11 +164,12 @@ impl Negamax {
         //         + 1(P-P')
         //         - 0.5(D-D' + S-S' + I-I')
         //         + 0.1(M-M') + ...
-
+        //
         // ' means the opponent score
         // KQRBNP = number of kings, queens, rooks, bishops, knights and pawns
         // D,S,I = doubled, blocked and isolated pawns
         // M = Mobility (the number of legal moves)
+
         let mut k = 0;
         let mut q = 0;
         let mut r = 0;
@@ -114,7 +184,6 @@ impl Negamax {
 
         let board_state = board.get_state_reference();
 
-        // Pieces worth
         for piece in pieces.iter() {
             if piece.get_value() == PieceType::Empty as i8 {
                 continue;
@@ -186,12 +255,11 @@ impl Negamax {
 
             let piece = board_state.get_piece(position);
 
-            if piece == 0 {
+            if piece == PieceType::Empty as i8 {
                 continue;
             }
 
-            if get_piece_type(piece) == PieceType::Pawn && 
-                is_white_piece(piece) == white_piece {
+            if get_piece_type(piece) == PieceType::Pawn && is_white_piece(piece) == white_piece {
                 return false;
             }
         }

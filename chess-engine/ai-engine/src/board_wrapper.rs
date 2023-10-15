@@ -39,11 +39,11 @@ impl BoardWrapper {
     }
 
     pub fn get_ai_move(&mut self, depth: u8) -> (i32, PieceMoveDTO) {
-        let start = Instant::now(); // Capture the start time
+        let start = Instant::now();
 
         let result = self.mini_max.make_move(&mut self.board, depth);
         
-        let duration = start.elapsed(); // Calculate the elapsed time
+        let duration = start.elapsed();
 
         println!("Time elapsed is: {:?}", duration);
 
