@@ -1,9 +1,7 @@
 use crate::{
     common::{
         piece_move::PieceMove,
-        piece_utils::{
-            get_piece_worth, get_promotion_options, is_white_piece, PieceType,
-        },
+        piece_utils::{get_piece_worth, get_promotion_options, is_white_piece, PieceType},
     },
     game::board::Board,
 };
@@ -37,9 +35,7 @@ impl MiniMax {
         let pieces = board.get_pieces();
 
         for piece in pieces.iter() {
-            if (piece.get_value() == PieceType::Empty as i8)
-                || (piece.is_white()) != board.is_white_move()
-            {
+            if (piece.get_value() == EMPTY_PIECE) || (piece.is_white()) != board.is_white_move() {
                 continue;
             }
 
@@ -90,7 +86,7 @@ impl MiniMax {
         // sum of the pieces will give the state value
         let mut board_value: i32 = 0;
         for piece in board.get_squares().iter() {
-            if *piece == PieceType::Empty as i8 {
+            if *piece == EMPTY_PIECE {
                 continue;
             }
 

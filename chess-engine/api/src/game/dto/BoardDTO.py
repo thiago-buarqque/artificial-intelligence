@@ -9,9 +9,11 @@ class BoardDTO(DTO):
         pieces = board.get_available_moves()
 
         dict.__init__(self,
+                      blackEnPassant=board.get_black_en_passant(),
                       blackCaptures=board.black_captures_to_fen(),
                       pieces=[BoardPieceDTO.from_pieceDTO(piece) for piece in pieces],
                       whiteCaptures=board.white_captures_to_fen(),
+                      whiteEnPassant=board.get_white_en_passant(),
                       whiteMove=board.is_white_move(),
                       winner=board.get_winner_fen(),
                       )

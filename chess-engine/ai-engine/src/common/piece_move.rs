@@ -1,6 +1,6 @@
-use crate::dto::piece_move_dto::PieceMoveDTO;
+use crate::{dto::piece_move_dto::PieceMoveDTO, game::contants::EMPTY_PIECE};
 
-use super::piece_utils::{piece_value_from_fen, PieceType};
+use super::piece_utils::piece_value_from_fen;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct PieceMove {
@@ -21,7 +21,7 @@ impl PieceMove {
             is_promotion: false,
             move_worth: 0,
             piece_value,
-            promotion_type: PieceType::Empty as i8,
+            promotion_type: EMPTY_PIECE,
             to_position: to,
         }
     }

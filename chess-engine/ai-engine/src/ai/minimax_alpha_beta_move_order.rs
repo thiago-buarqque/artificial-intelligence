@@ -63,7 +63,7 @@ impl MiniMaxAlphaBetaMoveOrder {
 
                 if max {
                     let current_move_value = self.minimax(board, alpha, beta, depth - 1, false);
-                    
+
                     moves_count += current_move_value.2;
 
                     if current_move_value.0 > value {
@@ -79,7 +79,7 @@ impl MiniMaxAlphaBetaMoveOrder {
                     }
                 } else {
                     let current_move_value = self.minimax(board, alpha, beta, depth - 1, true);
-                    
+
                     moves_count += current_move_value.2;
 
                     if current_move_value.0 < value {
@@ -107,7 +107,7 @@ impl MiniMaxAlphaBetaMoveOrder {
         // sum of the pieces will give the state value
         let mut board_value: i32 = 0;
         for piece in board.get_squares().iter() {
-            if *piece == PieceType::Empty as i8 {
+            if *piece == EMPTY_PIECE {
                 continue;
             }
 

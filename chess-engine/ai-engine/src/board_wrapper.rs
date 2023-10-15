@@ -6,15 +6,13 @@ use crate::{
     common::{
         contants::INITIAL_FEN,
         piece_move::PieceMove,
-        piece_utils::{
-            get_promotion_options, PieceType,
-        },
+        piece_utils::get_promotion_options,
     },
     dto::{
         dto_utils::piece_move_dto_from_piece_move, piece_dto::PieceDTO,
         piece_move_dto::PieceMoveDTO,
     },
-    game::board::Board,
+    game::{board::Board, contants::EMPTY_PIECE},
 };
 
 #[pyclass]
@@ -42,7 +40,7 @@ impl BoardWrapper {
         let start = Instant::now();
 
         let result = self.mini_max.make_move(&mut self.board, depth);
-        
+
         let duration = start.elapsed();
 
         println!("Time elapsed is: {:?}", duration);
@@ -80,6 +78,14 @@ impl BoardWrapper {
         pieces
     }
 
+    pub fn get_black_en_passant(&self) -> i8 {
+        self.board.get_state_reference().black_en_passant()
+    }
+
+    pub fn get_white_en_passant(&self) -> i8 {
+        self.board.get_state_reference().white_en_passant()
+    }
+
     pub fn get_winner_fen(&self) -> char {
         self.board.get_winner_fen()
     }
@@ -112,9 +118,7 @@ fn move_generation_count(board: &mut Board, depth: usize, track_moves: bool) -> 
     let mut num_positions: u64 = 0;
 
     for piece in pieces.iter() {
-        if (piece.get_value() == PieceType::Empty as i8)
-            || (piece.is_white() != board.is_white_move())
-        {
+        if (piece.get_value() == EMPTY_PIECE) || (piece.is_white() != board.is_white_move()) {
             continue;
         }
 
@@ -130,7 +134,7 @@ fn move_generation_count(board: &mut Board, depth: usize, track_moves: bool) -> 
             for promotion_option in promotion_char_options {
                 piece_move.promotion_type = promotion_option;
 
-                board.move_piece(&piece_move);
+                let _ = board.move_piece(&piece_move);
 
                 let moves_count = move_generation_count(board, depth - 1, false);
                 num_positions += moves_count;

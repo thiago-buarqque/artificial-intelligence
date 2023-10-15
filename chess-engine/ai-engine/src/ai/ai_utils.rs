@@ -2,9 +2,9 @@ use crate::{
     common::{
         board_piece::BoardPiece,
         piece_move::PieceMove,
-        piece_utils::{get_piece_worth, PieceType},
+        piece_utils::get_piece_worth,
     },
-    game::board::Board,
+    game::{board::Board, contants::EMPTY_PIECE},
 };
 
 pub fn get_ordered_moves(board: &Board, max: bool, pieces: Vec<BoardPiece>) -> Vec<PieceMove> {
@@ -28,7 +28,7 @@ pub fn get_ordered_moves(board: &Board, max: bool, pieces: Vec<BoardPiece>) -> V
         let target_piece = board_state.get_piece(_move.to_position);
 
         // Capturing move
-        if target_piece != PieceType::Empty as i8 {
+        if target_piece != EMPTY_PIECE {
             _move.move_worth = 9 * get_piece_worth(target_piece) - get_piece_worth(moving_piece)
         }
 

@@ -4,7 +4,7 @@ use crate::common::{
     piece_utils::{get_piece_type, is_piece_of_type, is_white_piece, PieceColor, PieceType},
 };
 
-use super::{board_state::BoardState, move_generator::MoveGenerator};
+use super::{board_state::BoardState, move_generator::MoveGenerator, contants::EMPTY_PIECE};
 
 #[derive(Debug, Clone)]
 pub struct Board {
@@ -110,7 +110,7 @@ impl Board {
             let mut moving_piece = self.state.get_piece(from_index);
             let replaced_piece = self.state.get_piece(to_index);
 
-            if moving_piece == PieceType::Empty as i8 {
+            if moving_piece == EMPTY_PIECE {
                 return Err("No piece at the position");
             } else if get_piece_type(replaced_piece) == PieceType::King {
                 println!("Can't capture king!");
@@ -133,7 +133,7 @@ impl Board {
 
             self.place_piece(to_index, moving_piece);
 
-            self.state.place_piece(from_index, PieceType::Empty as i8);
+            self.state.place_piece(from_index, EMPTY_PIECE);
 
             if !rook_castling {
                 self.register_en_passant(from_index, moving_piece, to_index);
@@ -173,7 +173,12 @@ impl Board {
             && ((white_piece && !self.state.white_king_moved())
                 || (!white_piece && !self.state.black_king_moved()))
         {
-            self.castle(from_index, self.state.get_piece(moving_piece), to_index, white_piece);
+            let _ = self.castle(
+                from_index,
+                self.state.get_piece(moving_piece),
+                to_index,
+                white_piece,
+            );
         }
 
         if white_piece {
@@ -226,14 +231,14 @@ impl Board {
             let piece_value = self.state.get_piece(position);
 
             self.state.append_white_capture(piece_value);
-            self.state.place_piece(position, PieceType::Empty as i8);
+            self.state.place_piece(position, EMPTY_PIECE);
             self.state.set_black_en_passant(-1);
         } else {
             let position = self.state.white_en_passant() - 8;
             let piece_value = self.state.get_piece(position);
 
             self.state.append_black_capture(piece_value);
-            self.state.place_piece(position, PieceType::Empty as i8);
+            self.state.place_piece(position, EMPTY_PIECE);
             self.state.set_white_en_passant(-1);
         }
     }

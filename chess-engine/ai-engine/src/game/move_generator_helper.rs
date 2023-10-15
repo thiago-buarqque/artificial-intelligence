@@ -1,6 +1,6 @@
-use crate::common::{piece_move::PieceMove, piece_utils::PieceType};
+use crate::common::piece_move::PieceMove;
 
-use super::board_state::BoardState;
+use super::{board_state::BoardState, contants::EMPTY_PIECE};
 
 pub fn is_pawn_first_move(white_piece: bool, piece_position: i8) -> bool {
     if white_piece && (48..=55).contains(&piece_position) {
@@ -22,7 +22,7 @@ pub fn is_path_clear(board_state: &BoardState, start: i8, end: i8, step: i8) -> 
     let mut i = start;
 
     while i != end {
-        if board_state.get_piece(i) != PieceType::Empty as i8 {
+        if board_state.get_piece(i) != EMPTY_PIECE {
             return false;
         }
         i += step;

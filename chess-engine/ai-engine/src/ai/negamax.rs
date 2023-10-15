@@ -11,7 +11,10 @@ use crate::{
         piece_move::PieceMove,
         piece_utils::{get_piece_type, get_promotion_options, is_white_piece, PieceType},
     },
-    game::{board::Board, board_state::BoardState, move_generator_helper::get_adjacent_position},
+    game::{
+        board::Board, board_state::BoardState, contants::EMPTY_PIECE,
+        move_generator_helper::get_adjacent_position,
+    },
 };
 
 use super::ai_utils::get_ordered_moves;
@@ -24,19 +27,20 @@ impl Negamax {
     }
 
     pub fn make_move(&mut self, board: &mut Board, depth: u8) -> (i32, PieceMove) {
-        let pieces: Vec<BoardPiece> = board.get_pieces();
-
         let best_move = Arc::new(Mutex::new(PieceMove::new(-1, 0, -1)));
         let moves_count: Arc<Mutex<u64>> = Arc::new(Mutex::new(0));
         let value = Arc::new(Mutex::new(i32::MIN));
 
+        let pieces: Vec<BoardPiece> = board.get_pieces();
+
         let mut moves: Vec<PieceMove> = get_ordered_moves(board, true, pieces);
 
         moves.par_iter_mut().for_each(|_move| {
-            let mut _board = board.clone();
+            let mut board_copy = board.clone();
+
             self.search_parallel(
                 _move,
-                &mut _board,
+                &mut board_copy,
                 depth - 1,
                 &value,
                 &moves_count,
@@ -62,16 +66,16 @@ impl Negamax {
         moves_count: &Arc<Mutex<u64>>,
         best_move: &Arc<Mutex<PieceMove>>,
     ) {
-        let mut promotion_options = vec![_move.promotion_type];
-
-        if _move.is_promotion {
-            promotion_options = get_promotion_options(is_white_piece(_move.piece_value));
-        }
+        let promotion_options = if _move.is_promotion {
+            get_promotion_options(is_white_piece(_move.piece_value))
+        } else {
+            vec![_move.promotion_type]
+        };
 
         for promotion_option in promotion_options {
             _move.promotion_type = promotion_option;
 
-            board.move_piece(_move);
+            let _ = board.move_piece(_move);
 
             let node_results = self.negamax(board, i32::MIN, i32::MAX, false, depth - 1);
 
@@ -123,28 +127,26 @@ impl Negamax {
         let mut moves: Vec<PieceMove> = get_ordered_moves(board, max, pieces);
 
         'piece_move_loop: for _move in moves.iter_mut() {
-            let mut promotion_options = vec![_move.promotion_type];
-
-            if _move.is_promotion {
-                promotion_options = get_promotion_options(is_white_piece(_move.piece_value));
-            }
+            let promotion_options = if _move.is_promotion {
+                get_promotion_options(is_white_piece(_move.piece_value))
+            } else {
+                vec![_move.promotion_type]
+            };
 
             for promotion_option in promotion_options {
                 _move.promotion_type = promotion_option;
 
-                board.move_piece(_move);
+                let _ = board.move_piece(_move);
 
                 let node_results = self.negamax(board, -beta, -alpha, !max, depth - 1);
 
+                board.undo_move();
+
                 moves_count += node_results.1;
 
-                if -node_results.0 > value {
-                    value = -node_results.0;
-                }
+                value = value.max(-node_results.0);
 
                 alpha = alpha.max(value);
-
-                board.undo_move();
 
                 if alpha >= beta {
                     break 'piece_move_loop;
@@ -185,7 +187,7 @@ impl Negamax {
         let board_state = board.get_state_reference();
 
         for piece in pieces.iter() {
-            if piece.get_value() == PieceType::Empty as i8 {
+            if piece.get_value() == EMPTY_PIECE {
                 continue;
             }
 
@@ -231,12 +233,10 @@ impl Negamax {
             }
         }
 
-        200 * k + 9 * q + 5 * r + 3 * (b + n) + p - ((d + s + i) / 2) + (m / 10)
+        (200 * k) + (9 * q) + (5 * r) + (3 * (b + n)) + p - ((d + s + i) / 2) + (m / 10)
     }
 
     fn is_isolated_pawn(&self, board_state: &BoardState, position: i8, white_piece: bool) -> bool {
-        let position = position;
-
         let positions = [
             get_adjacent_position(position, position - 1),
             get_adjacent_position(position, position + 1),
@@ -248,14 +248,14 @@ impl Negamax {
             get_adjacent_position(position, position + 9),
         ];
 
-        for position in positions {
-            if !board_state.is_valid_position(position) {
+        for adjacent_position in positions {
+            if !board_state.is_valid_position(adjacent_position) {
                 continue;
             }
 
-            let piece = board_state.get_piece(position);
+            let piece = board_state.get_piece(adjacent_position);
 
-            if piece == PieceType::Empty as i8 {
+            if piece == EMPTY_PIECE {
                 continue;
             }
 
@@ -270,10 +270,10 @@ impl Negamax {
     fn is_blocked_pawn(&self, board_state: &BoardState, position: i8, white_piece: bool) -> bool {
         let offset: i8 = if white_piece { -8 } else { 8 };
 
-        let frontal_pawn = board_state.get_piece(position + offset);
+        let frontal_piece = board_state.get_piece(position + offset);
 
-        if get_piece_type(frontal_pawn) != PieceType::Empty
-            && white_piece != is_white_piece(frontal_pawn)
+        if get_piece_type(frontal_piece) != PieceType::Empty
+            // && white_piece != is_white_piece(frontal_piece)
         {
             let mut diagonal_left = 0;
             let mut diagonal_right = 0;
@@ -310,12 +310,25 @@ impl Negamax {
     fn is_doubled_pawn(&self, board_state: &BoardState, position: i8, white_piece: bool) -> bool {
         let offset: i8 = if white_piece { -8 } else { 8 };
 
-        let frontal_pawn = board_state.get_piece(position + offset);
+        let mut _position = position + offset;
+        while board_state.is_valid_position(_position) {
+            let frontal_piece = board_state.get_piece(_position);
+            
+            _position += offset;
 
-        if get_piece_type(frontal_pawn) == PieceType::Pawn
-            && white_piece == is_white_piece(frontal_pawn)
-        {
-            return true;
+            if frontal_piece == EMPTY_PIECE {
+                continue;
+            }
+
+            let piece_type = get_piece_type(frontal_piece);
+
+            if piece_type != PieceType::Pawn {
+                return false;
+            }
+            else if white_piece == is_white_piece(frontal_piece)
+            {
+                return true;
+            }
         }
 
         false

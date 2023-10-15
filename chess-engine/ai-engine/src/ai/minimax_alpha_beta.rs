@@ -45,9 +45,7 @@ impl MiniMaxAlphaBeta {
         let pieces = board.get_pieces();
 
         for piece in pieces.iter() {
-            if (piece.get_value() == PieceType::Empty as i8)
-                || (piece.is_white()) != board.is_white_move()
-            {
+            if (piece.get_value() == EMPTY_PIECE) || (piece.is_white()) != board.is_white_move() {
                 continue;
             }
 
@@ -85,7 +83,7 @@ impl MiniMaxAlphaBeta {
                         let current_move_value = self.minimax(board, alpha, beta, depth - 1, true);
 
                         moves_count += current_move_value.2;
-                        
+
                         if current_move_value.0 < value {
                             value = current_move_value.0;
                             best_move = piece_move.clone();
@@ -112,7 +110,7 @@ impl MiniMaxAlphaBeta {
         // sum of the pieces will give the state value
         let mut board_value: i32 = 0;
         for piece in board.get_squares().iter() {
-            if *piece == PieceType::Empty as i8 {
+            if *piece == EMPTY_PIECE {
                 continue;
             }
 
