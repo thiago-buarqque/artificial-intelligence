@@ -325,8 +325,16 @@ impl MoveGenerator {
             if self.board_state.is_valid_position(new_position) {
                 let current_piece = self.board_state.get_piece(new_position);
 
-                if current_piece == EMPTY_PIECE || !is_same_color(knight_piece, current_piece) {
-                    moves.push(PieceMove::new(position, current_piece, new_position));
+                let same_color = is_same_color(knight_piece, current_piece);
+
+                if current_piece == EMPTY_PIECE || !same_color {
+                    let mut _move = PieceMove::new(position, current_piece, new_position);
+
+                    if !same_color {
+                        _move.is_capture = true;
+                    }
+
+                    moves.push(_move);
                 }
             }
         }
@@ -374,8 +382,16 @@ impl MoveGenerator {
             } else {
                 let piece_value = self.board_state.get_piece(position);
 
-                if piece_value == EMPTY_PIECE || !is_same_color(king, piece_value) {
-                    moves.push(PieceMove::new(king_position, piece_value, position));
+                let same_color = is_same_color(king, piece_value);
+
+                if piece_value == EMPTY_PIECE || !same_color {
+                    let mut _move = PieceMove::new(king_position, piece_value, position);
+
+                    if !same_color {
+                        _move.is_capture = true;
+                    }
+
+                    moves.push(_move);
                 }
             }
         }
@@ -572,7 +588,11 @@ impl MoveGenerator {
             if existing_piece == EMPTY_PIECE {
                 moves.push(PieceMove::new(position, existing_piece, new_position));
             } else if !is_same_color(piece, existing_piece) {
-                moves.push(PieceMove::new(position, existing_piece, new_position));
+                let mut _move = PieceMove::new(position, existing_piece, new_position);
+
+                _move.is_capture = true;
+
+                moves.push(_move);
                 break;
             } else {
                 break;
@@ -661,7 +681,7 @@ impl MoveGenerator {
         }
     }
 
-    fn generate_pawn_diagonal_captures(
+    fn generate_pawn_captures(
         &self,
         moves: &mut Vec<PieceMove>,
         next_line_position: i8,
@@ -682,7 +702,11 @@ impl MoveGenerator {
             && existing_piece != EMPTY_PIECE
             && is_white_piece(existing_piece) != white_piece
         {
-            moves.push(PieceMove::new(position, pawn_value, diagonal));
+            let mut _move = PieceMove::new(position, pawn_value, diagonal);
+
+            _move.is_capture = true;
+
+            moves.push(_move);
 
             if !(0..=7).contains(&diagonal) && !(56..=63).contains(&diagonal) {
                 return;
@@ -702,7 +726,7 @@ impl MoveGenerator {
         position: i8,
         white_piece: bool,
     ) {
-        self.generate_pawn_diagonal_captures(
+        self.generate_pawn_captures(
             moves,
             next_line_position,
             pawn_value,
@@ -711,7 +735,7 @@ impl MoveGenerator {
             true,
         );
 
-        self.generate_pawn_diagonal_captures(
+        self.generate_pawn_captures(
             moves,
             next_line_position,
             pawn_value,
@@ -765,6 +789,7 @@ impl MoveGenerator {
 
         let mut _move = PieceMove::new(position, pawn_value, side_square + offset);
 
+        _move.is_capture = true;
         _move.is_en_passant = true;
 
         moves.push(_move);

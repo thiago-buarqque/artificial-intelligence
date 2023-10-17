@@ -9,15 +9,12 @@ use crate::{
     common::{
         board_piece::BoardPiece,
         piece_move::PieceMove,
-        piece_utils::{get_piece_type, get_promotion_options, is_white_piece, PieceType},
+        piece_utils::{get_promotion_options, is_white_piece},
     },
-    game::{
-        board::Board, board_state::BoardState, contants::EMPTY_PIECE,
-        move_generator_helper::get_adjacent_position,
-    },
+    game::board::Board,
 };
 
-use super::ai_utils::get_ordered_moves;
+use super::ai_utils::{get_board_value, get_sorted_moves};
 
 pub struct Negamax {}
 
@@ -33,7 +30,7 @@ impl Negamax {
 
         let pieces: Vec<BoardPiece> = board.get_pieces();
 
-        let mut moves: Vec<PieceMove> = get_ordered_moves(board, true, pieces);
+        let mut moves: Vec<PieceMove> = get_sorted_moves(board, true, pieces, false);
 
         moves.par_iter_mut().for_each(|_move| {
             let mut board_copy = board.clone();
@@ -77,7 +74,7 @@ impl Negamax {
 
             let _ = board.move_piece(_move);
 
-            let node_results = self.negamax(board, i32::MIN, i32::MAX, false, depth - 1);
+            let node_results = Self::negamax(board, i32::MIN, i32::MAX, false, depth - 1);
 
             let mut locked_moves_count = moves_count.lock().unwrap();
 
@@ -104,7 +101,6 @@ impl Negamax {
     }
 
     fn negamax(
-        &self,
         board: &mut Board,
         _alpha: i32,
         _beta: i32,
@@ -118,13 +114,13 @@ impl Negamax {
 
         if depth == 0 || board.is_game_finished() {
             // Start a new search that look for positions with no captures available
-            return (self.get_board_value(board, &pieces), 1);
+            return (Self::search_captures(board, alpha, beta, max, 1), 1);
         }
 
         let mut moves_count = 0;
         let mut value = i32::MIN;
 
-        let mut moves: Vec<PieceMove> = get_ordered_moves(board, max, pieces);
+        let mut moves: Vec<PieceMove> = get_sorted_moves(board, max, pieces, false);
 
         'piece_move_loop: for _move in moves.iter_mut() {
             let promotion_options = if _move.is_promotion {
@@ -138,7 +134,7 @@ impl Negamax {
 
                 let _ = board.move_piece(_move);
 
-                let node_results = self.negamax(board, -beta, -alpha, !max, depth - 1);
+                let node_results = Self::negamax(board, -beta, -alpha, !max, depth - 1);
 
                 board.undo_move();
 
@@ -157,180 +153,57 @@ impl Negamax {
         (value, moves_count)
     }
 
-    fn get_board_value(&self, board: &mut Board, pieces: &[BoardPiece]) -> i32 {
-        // The evaluation
-        // f(p) = 200(K-K')
-        //         + 9(Q-Q')
-        //         + 5(R-R')
-        //         + 3(B-B' + N-N')
-        //         + 1(P-P')
-        //         - 0.5(D-D' + S-S' + I-I')
-        //         + 0.1(M-M') + ...
-        //
-        // ' means the opponent score
-        // KQRBNP = number of kings, queens, rooks, bishops, knights and pawns
-        // D,S,I = doubled, blocked and isolated pawns
-        // M = Mobility (the number of legal moves)
+    fn search_captures(
+        board: &mut Board,
+        _alpha: i32,
+        _beta: i32,
+        max: bool,
+        depth: u32,
+    ) -> i32 {
+        let mut alpha = _alpha;
+        let beta = _beta;
+        
+        let pieces: Vec<BoardPiece> = board.get_pieces();
+        
+        let mut value = get_board_value(board, &pieces);
+        
+        if value >= beta {
+            return beta;
+        }
 
-        let mut k = 0;
-        let mut q = 0;
-        let mut r = 0;
-        let mut b = 0;
-        let mut n = 0;
-        let mut p = 0;
+        alpha = alpha.max(value);
 
-        let mut d = 0;
-        let mut s = 0;
-        let mut i = 0;
-        let mut m = 0;
+        let mut capture_moves: Vec<PieceMove> = get_sorted_moves(board, max, pieces, true);
+        
+        // println!("Depth: {} | {} captures", depth, capture_moves.len());
+        if board.is_game_finished() || capture_moves.is_empty() {
+            return value;
+        }
 
-        let board_state = board.get_state_reference();
-
-        for piece in pieces.iter() {
-            if piece.get_value() == EMPTY_PIECE {
-                continue;
-            }
-
-            let factor: i32 = if piece.is_white() == board.is_white_move() {
-                1
+        for _move in capture_moves.iter_mut() {
+            let promotion_options = if _move.is_promotion {
+                get_promotion_options(is_white_piece(_move.piece_value))
             } else {
-                -1
+                vec![_move.promotion_type]
             };
 
-            let piece_type = get_piece_type(piece.get_value());
+            for promotion_option in promotion_options {
+                _move.promotion_type = promotion_option;
 
-            match piece_type {
-                PieceType::King => k += factor,
-                PieceType::Queen => q += factor,
-                PieceType::Rook => r += factor,
-                PieceType::Bishop => b += factor,
-                PieceType::Knight => n += factor,
-                PieceType::Pawn => p += factor,
-                // Additional cases for D, S, I, and M are handled below
-                _ => (),
-            }
+                let _ = board.move_piece(_move);
 
-            if piece_type == PieceType::Pawn {
-                if self.is_doubled_pawn(board_state, piece.get_position(), piece.is_white()) {
-                    d += factor;
-                }
+                value = Self::search_captures(board, -beta, -alpha, !max, depth + 1);
 
-                if self.is_blocked_pawn(board_state, piece.get_position(), piece.is_white()) {
-                    s += 1;
-                }
-
-                if self.is_isolated_pawn(board_state, piece.get_position(), piece.is_white()) {
-                    i += 1;
-                }
-            }
-
-            for _move in piece.get_moves_reference().iter() {
-                if piece.is_white() == board.is_white_move() {
-                    m += 1
-                } else {
-                    m -= 1
-                };
-            }
-        }
-
-        (200 * k) + (9 * q) + (5 * r) + (3 * (b + n)) + p - ((d + s + i) / 2) + (m / 10)
-    }
-
-    fn is_isolated_pawn(&self, board_state: &BoardState, position: i8, white_piece: bool) -> bool {
-        let positions = [
-            get_adjacent_position(position, position - 1),
-            get_adjacent_position(position, position + 1),
-            get_adjacent_position(position, position - 9),
-            get_adjacent_position(position, position - 8),
-            get_adjacent_position(position, position - 7),
-            get_adjacent_position(position, position + 7),
-            get_adjacent_position(position, position + 8),
-            get_adjacent_position(position, position + 9),
-        ];
-
-        for adjacent_position in positions {
-            if !board_state.is_valid_position(adjacent_position) {
-                continue;
-            }
-
-            let piece = board_state.get_piece(adjacent_position);
-
-            if piece == EMPTY_PIECE {
-                continue;
-            }
-
-            if get_piece_type(piece) == PieceType::Pawn && is_white_piece(piece) == white_piece {
-                return false;
-            }
-        }
-
-        true
-    }
-
-    fn is_blocked_pawn(&self, board_state: &BoardState, position: i8, white_piece: bool) -> bool {
-        let offset: i8 = if white_piece { -8 } else { 8 };
-
-        let frontal_piece = board_state.get_piece(position + offset);
-
-        if get_piece_type(frontal_piece) != PieceType::Empty
-            // && white_piece != is_white_piece(frontal_piece)
-        {
-            let mut diagonal_left = 0;
-            let mut diagonal_right = 0;
-
-            if position % 8 != 0 {
-                let diagonal_offset = if white_piece { -1 } else { 1 };
-
-                diagonal_left = board_state.get_piece(position + offset + diagonal_offset);
-            }
-
-            if (position + 1) % 8 != 0 {
-                let diagonal_offset = if white_piece { 1 } else { -1 };
-
-                diagonal_right = board_state.get_piece(position + offset + diagonal_offset);
-            }
-
-            let diagonal_left_color = is_white_piece(diagonal_left);
-            let diagonal_right_color = is_white_piece(diagonal_right);
-
-            if diagonal_left == 0 && diagonal_right == 0 {
-                return true;
-            } else if diagonal_left != 0 && diagonal_right == 0 {
-                return diagonal_left_color == white_piece;
-            } else if diagonal_right != 0 && diagonal_left == 0 {
-                return diagonal_right_color == white_piece;
-            }
-
-            return diagonal_left_color == white_piece && diagonal_right_color == white_piece;
-        }
-
-        false
-    }
-
-    fn is_doubled_pawn(&self, board_state: &BoardState, position: i8, white_piece: bool) -> bool {
-        let offset: i8 = if white_piece { -8 } else { 8 };
-
-        let mut _position = position + offset;
-        while board_state.is_valid_position(_position) {
-            let frontal_piece = board_state.get_piece(_position);
+                board.undo_move();
             
-            _position += offset;
+                if value >= beta {
+                    return beta;
+                }
 
-            if frontal_piece == EMPTY_PIECE {
-                continue;
-            }
-
-            let piece_type = get_piece_type(frontal_piece);
-
-            if piece_type != PieceType::Pawn {
-                return false;
-            }
-            else if white_piece == is_white_piece(frontal_piece)
-            {
-                return true;
+                alpha = alpha.max(value);
             }
         }
 
-        false
+        alpha
     }
 }

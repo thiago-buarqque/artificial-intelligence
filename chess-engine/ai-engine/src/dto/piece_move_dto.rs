@@ -6,6 +6,8 @@ pub struct PieceMoveDTO {
     #[pyo3(get)]
     pub from_position: i8,
     #[pyo3(get)]
+    pub is_capture: bool,
+    #[pyo3(get)]
     pub is_en_passant: bool,
     #[pyo3(get)]
     pub is_promotion: bool,
@@ -22,6 +24,7 @@ impl PieceMoveDTO {
     #[new]
     pub fn new(
         from_position: i8,
+        is_capture: bool,
         is_en_passant: bool,
         is_promotion: bool,
         piece_value: i8, 
@@ -30,6 +33,7 @@ impl PieceMoveDTO {
     ) -> Self {
         Self {
             from_position,
+            is_capture,
             is_en_passant,
             is_promotion,
             piece_value,

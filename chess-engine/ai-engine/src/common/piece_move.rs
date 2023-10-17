@@ -5,6 +5,7 @@ use super::piece_utils::piece_value_from_fen;
 #[derive(Debug, Clone, PartialEq)]
 pub struct PieceMove {
     pub from_position: i8,
+    pub is_capture: bool,
     pub is_en_passant: bool,
     pub is_promotion: bool,
     pub move_worth: i32,
@@ -17,6 +18,7 @@ impl PieceMove {
     pub fn new(from: i8, piece_value: i8, to: i8) -> Self {
         Self {
             from_position: from,
+            is_capture: false,
             is_en_passant: false,
             is_promotion: false,
             move_worth: 0,
@@ -29,6 +31,7 @@ impl PieceMove {
     pub fn from_dto(piece_move_dto: PieceMoveDTO) -> Self {
         Self {
             from_position: piece_move_dto.from_position,
+            is_capture: piece_move_dto.is_capture,
             is_en_passant: piece_move_dto.is_en_passant,
             is_promotion: piece_move_dto.is_promotion,
             move_worth: 0,
@@ -41,6 +44,7 @@ impl PieceMove {
     pub fn clone(&self) -> PieceMove {
         PieceMove {
             from_position: self.from_position,
+            is_capture: self.is_capture,
             is_en_passant: self.is_en_passant,
             is_promotion: self.is_promotion,
             move_worth: self.move_worth,
@@ -59,10 +63,13 @@ impl PieceMove {
     }
 
     pub fn eq(&self, piece_move: &Self) -> bool {
-        (self.promotion_type == piece_move.promotion_type)
-            && (self.from_position == piece_move.from_position)
-            && (self.to_position == piece_move.to_position)
-            && (self.is_promotion == piece_move.is_promotion)
+        (self.from_position == piece_move.from_position)
+            && (self.is_capture == piece_move.is_capture)
             && (self.is_en_passant == piece_move.is_en_passant)
+            && (self.is_promotion == piece_move.is_promotion)
+            && (self.move_worth == piece_move.move_worth)
+            && (self.piece_value == piece_move.piece_value)
+            && (self.promotion_type == piece_move.promotion_type)
+            && (self.to_position == piece_move.to_position)
     }
 }

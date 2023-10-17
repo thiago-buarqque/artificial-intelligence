@@ -18,7 +18,7 @@ use crate::{
 #[pyclass]
 pub struct BoardWrapper {
     board: Board,
-    mini_max: Negamax,
+    nega_max: Negamax,
 }
 
 // is this a facade?
@@ -32,14 +32,14 @@ impl BoardWrapper {
 
         BoardWrapper {
             board,
-            mini_max: Negamax::new(),
+            nega_max: Negamax::new(),
         }
     }
 
     pub fn get_ai_move(&mut self, depth: u8) -> (i32, PieceMoveDTO) {
         let start = Instant::now();
 
-        let result = self.mini_max.make_move(&mut self.board, depth);
+        let result = self.nega_max.make_move(&mut self.board, depth);
 
         let duration = start.elapsed();
 
