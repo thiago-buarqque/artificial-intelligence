@@ -1,6 +1,9 @@
-use crate::common::piece_utils::{piece_value_from_fen, pieces_to_fen, PieceColor, PieceType};
+use crate::common::piece_utils::{piece_value_from_fen, pieces_to_fen};
 
-use super::contants::{BLACK_KING_INITIAL_POSITION, WHITE_KING_INITIAL_POSITION};
+use super::contants::{
+    BLACK_KING_INITIAL_POSITION, BLACK_KING_VALUE, LETTER_A_UNICODE, WHITE_KING_INITIAL_POSITION,
+    WHITE_KING_VALUE,
+};
 
 #[derive(Debug, Clone)]
 pub struct BoardState {
@@ -12,7 +15,7 @@ pub struct BoardState {
     black_king_position: i8,
     full_moves: i8,
     half_moves: i8,
-    is_white_move: bool,
+    white_move: bool,
     squares: [i8; 64],
     white_able_to_king_side_castle: bool,
     white_able_to_queen_side_castle: bool,
@@ -34,7 +37,7 @@ impl BoardState {
             black_king_position: BLACK_KING_INITIAL_POSITION,
             full_moves: 0,
             half_moves: 0,
-            is_white_move: true,
+            white_move: true,
             squares: [0; 64],
             white_able_to_king_side_castle: true,
             white_able_to_queen_side_castle: true,
@@ -56,7 +59,7 @@ impl BoardState {
             black_king_position: self.black_king_position,
             full_moves: self.full_moves,
             half_moves: self.half_moves,
-            is_white_move: self.is_white_move,
+            white_move: self.white_move,
             squares: self.squares,
             white_able_to_king_side_castle: self.white_able_to_king_side_castle,
             white_able_to_queen_side_castle: self.white_able_to_queen_side_castle,
@@ -69,13 +72,13 @@ impl BoardState {
     }
 
     pub fn is_able_to_castle_queen_side(&self, white_king: bool) -> bool {
-        (white_king && self.white_able_to_queen_side_castle())
-            || (!white_king && self.black_able_to_queen_side_castle())
+        (white_king && self.is_white_able_to_queen_side_castle())
+            || (!white_king && self.is_black_able_to_queen_side_castle())
     }
 
     pub fn is_able_to_castle_king_side(&self, white_king: bool) -> bool {
-        (white_king && self.white_able_to_king_side_castle())
-            || (!white_king && self.black_able_to_king_side_castle())
+        (white_king && self.is_white_able_to_king_side_castle())
+            || (!white_king && self.is_black_able_to_king_side_castle())
     }
 
     pub fn white_captures_to_fen(&self) -> Vec<char> {
@@ -95,9 +98,9 @@ impl BoardState {
     }
 
     pub fn place_piece(&mut self, index: i8, piece: i8) {
-        if piece == (PieceColor::Black as i8 | PieceType::King as i8) {
+        if piece == BLACK_KING_VALUE {
             self.black_king_position = index;
-        } else if piece == (PieceColor::White as i8 | PieceType::King as i8) {
+        } else if piece == WHITE_KING_VALUE {
             self.white_king_position = index;
         }
 
@@ -149,9 +152,10 @@ impl BoardState {
             self.black_en_passant = -1;
         } else {
             let column = en_passant.chars().nth(0).unwrap();
-            let row: i32 = en_passant.chars().nth(1).unwrap().to_digit(10).unwrap() as i32;
+            let row: u8 = en_passant.chars().nth(1).unwrap().to_digit(10).unwrap() as u8;
 
             let mut is_white = false;
+
             let row = if row == 3 {
                 is_white = true;
                 4
@@ -159,7 +163,6 @@ impl BoardState {
                 3
             };
 
-            const LETTER_A_UNICODE: u8 = b'a';
             let position = (column as u8 - LETTER_A_UNICODE + (row * 8)) - 8;
 
             if is_white {
@@ -193,48 +196,53 @@ impl BoardState {
 
     fn load_active_color(&mut self, active_color: &str) {
         match active_color {
-            "w" => self.is_white_move = true,
-            "b" => self.is_white_move = false,
-            _ => self.is_white_move = true,
+            "w" => self.white_move = true,
+            "b" => self.white_move = false,
+            _ => self.white_move = true,
         }
     }
 
     fn generate_pieces_from_fen(&mut self, board_rows: &str) {
         let rows: Vec<&str> = board_rows.split('/').collect();
+
         let mut index = 0;
+
         for row in rows.iter() {
-            for char in row.chars() {
-                if char.is_numeric() {
-                    index += char.to_digit(10).unwrap() as usize;
-                } else {
-                    self.squares[index] = piece_value_from_fen(&char);
+            self.generate_row_pieces_fen(row, &mut index);
+        }
+    }
 
-                    if char == 'k' {
-                        self.black_king_position = index as i8;
-                    } else if char == 'K' {
-                        self.white_king_position = index as i8;
-                    }
+    fn generate_row_pieces_fen(&mut self, row: &&str, index: &mut usize) {
+        for char in row.chars() {
+            if char.is_numeric() {
+                *index += char.to_digit(10).unwrap() as usize;
+            } else {
+                self.squares[*index] = piece_value_from_fen(&char);
 
-                    index += 1;
+                if char == 'k' {
+                    self.black_king_position = *index as i8;
+                } else if char == 'K' {
+                    self.white_king_position = *index as i8;
                 }
+
+                *index += 1;
             }
         }
     }
 
-    // Getters
-    pub fn black_able_to_king_side_castle(&self) -> bool {
+    pub fn is_black_able_to_king_side_castle(&self) -> bool {
         self.black_able_to_king_side_castle
     }
 
-    pub fn black_able_to_queen_side_castle(&self) -> bool {
+    pub fn is_black_able_to_queen_side_castle(&self) -> bool {
         self.black_able_to_queen_side_castle
     }
 
-    pub fn black_en_passant(&self) -> i8 {
+    pub fn get_black_en_passant(&self) -> i8 {
         self.black_en_passant
     }
 
-    pub fn black_king_moved(&self) -> bool {
+    pub fn has_black_king_moved(&self) -> bool {
         self.black_king_moved
     }
 
@@ -247,26 +255,26 @@ impl BoardState {
     }
 
     pub fn is_white_move(&self) -> bool {
-        self.is_white_move
+        self.white_move
     }
 
-    pub fn squares(&self) -> &[i8; 64] {
+    pub fn get_squares(&self) -> &[i8; 64] {
         &self.squares
     }
 
-    pub fn white_able_to_king_side_castle(&self) -> bool {
+    pub fn is_white_able_to_king_side_castle(&self) -> bool {
         self.white_able_to_king_side_castle
     }
 
-    pub fn white_able_to_queen_side_castle(&self) -> bool {
+    pub fn is_white_able_to_queen_side_castle(&self) -> bool {
         self.white_able_to_queen_side_castle
     }
 
-    pub fn white_en_passant(&self) -> i8 {
+    pub fn get_white_en_passant(&self) -> i8 {
         self.white_en_passant
     }
 
-    pub fn white_king_moved(&self) -> bool {
+    pub fn has_white_king_moved(&self) -> bool {
         self.white_king_moved
     }
 
@@ -274,13 +282,12 @@ impl BoardState {
         self.winner
     }
 
-    // Setters
     pub fn set_winner(&mut self, value: i8) {
         self.winner = value;
     }
 
-    pub fn set_is_white_move(&mut self, value: bool) {
-        self.is_white_move = value;
+    pub fn set_white_move(&mut self, white_move: bool) {
+        self.white_move = white_move;
     }
 
     pub fn increment_full_moves(&mut self) {

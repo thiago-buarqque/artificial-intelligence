@@ -1,62 +1,54 @@
 use crate::{
-    common::{board_piece::BoardPiece, piece_move::PieceMove, piece_utils::{get_piece_worth, get_piece_type, PieceType, is_white_piece}},
-    game::{board::Board, board_state::BoardState, contants::EMPTY_PIECE, move_generator_helper::get_adjacent_position},
+    common::{
+        board_piece::BoardPiece,
+        contants::EMPTY_PIECE,
+        piece_move::PieceMove,
+        piece_utils::{get_piece_type, get_piece_worth, is_white_piece}, enums::PieceType,
+    },
+    game::{board::Board, board_state::BoardState, move_generator_helper::get_adjacent_position},
 };
 
-pub fn get_sorted_moves(
-    board: &Board,
-    max: bool,
-    pieces: Vec<BoardPiece>,
-    only_captures: bool,
-) -> Vec<PieceMove> {
+pub fn get_sorted_moves(board: &Board, max: bool, pieces: Vec<BoardPiece>) -> Vec<PieceMove> {
     let mut moves: Vec<PieceMove> = pieces
         .iter()
         .filter(|piece| piece.is_white() == board.is_white_move())
-        .flat_map(|piece| piece.get_immutable_moves())
+        .flat_map(|piece| piece.get_moves_clone())
         .collect();
 
     let attacked_positions: Vec<i8> = pieces
         .iter()
         .filter(|piece| piece.is_white() != board.is_white_move())
         .flat_map(|piece| piece.get_moves_reference())
-        .map(|_move| _move.to_position)
+        .map(|_move| _move.get_to_position())
         .collect();
-
-    if only_captures {
-        moves = moves
-            .iter()
-            .filter(|_move| _move.is_capture)
-            .map(|_move| _move.clone())
-            .collect();
-    }
 
     let board_state = board.get_state_reference();
 
     for _move in moves.iter_mut() {
-        let moving_piece = board_state.get_piece(_move.from_position);
-        let target_piece = board_state.get_piece(_move.to_position);
+        let moving_piece = board_state.get_piece(_move.get_from_position());
+        let target_piece = board_state.get_piece(_move.get_to_position());
 
         // Capturing move
-        if _move.is_capture {
-            _move.move_worth = 9 * get_piece_worth(target_piece) - get_piece_worth(moving_piece)
+        if _move.is_capture() {
+            _move.set_move_worth(9 * get_piece_worth(target_piece) - get_piece_worth(moving_piece))
         }
 
-        if _move.is_promotion {
-            _move.move_worth += 9
+        if _move.is_promotion() {
+            _move.sum_to_move_worth(9);
         }
 
         // Penalize pieces from moving to a attacked position
-        if attacked_positions.contains(&_move.to_position) {
-            _move.move_worth -= get_piece_worth(moving_piece)
+        if attacked_positions.contains(&_move.get_to_position()) {
+            _move.sum_to_move_worth(get_piece_worth(moving_piece))
         }
     }
 
     // TODO order also based on the hashmap with previous generated states
 
     if max {
-        moves.sort_by_key(|k| std::cmp::Reverse(k.move_worth));
+        moves.sort_by_key(|k| std::cmp::Reverse(k.get_move_worth()));
     } else {
-        moves.sort_by_key(|k| k.move_worth);
+        moves.sort_by_key(|k| k.get_move_worth());
     }
 
     moves

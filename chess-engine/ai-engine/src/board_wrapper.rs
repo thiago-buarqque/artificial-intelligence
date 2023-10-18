@@ -2,23 +2,23 @@ use pyo3::{exceptions, prelude::*};
 use std::time::Instant;
 
 use crate::{
-    ai::negamax::Negamax,
+    ai::negamax::AI,
     common::{
-        contants::INITIAL_FEN,
+        contants::{EMPTY_PIECE, INITIAL_FEN},
         piece_move::PieceMove,
-        piece_utils::get_promotion_options,
+        piece_utils::{get_promotion_options, piece_fen_from_value},
     },
     dto::{
         dto_utils::piece_move_dto_from_piece_move, piece_dto::PieceDTO,
         piece_move_dto::PieceMoveDTO,
     },
-    game::{board::Board, contants::EMPTY_PIECE},
+    game::board::Board,
 };
 
 #[pyclass]
 pub struct BoardWrapper {
     board: Board,
-    nega_max: Negamax,
+    nega_max: AI,
 }
 
 // is this a facade?
@@ -32,7 +32,7 @@ impl BoardWrapper {
 
         BoardWrapper {
             board,
-            nega_max: Negamax::new(),
+            nega_max: AI::new(),
         }
     }
 
@@ -68,8 +68,8 @@ impl BoardWrapper {
 
         for piece in self.board.get_pieces().iter() {
             pieces.push(PieceDTO::new(
-                piece.get_fen(),
-                piece.get_immutable_moves(),
+                piece_fen_from_value(piece.get_value()),
+                piece.get_moves_clone(),
                 piece.get_position(),
                 piece.is_white(),
             ));
@@ -79,11 +79,11 @@ impl BoardWrapper {
     }
 
     pub fn get_black_en_passant(&self) -> i8 {
-        self.board.get_state_reference().black_en_passant()
+        self.board.get_state_reference().get_black_en_passant()
     }
 
     pub fn get_white_en_passant(&self) -> i8 {
-        self.board.get_state_reference().white_en_passant()
+        self.board.get_state_reference().get_white_en_passant()
     }
 
     pub fn get_winner_fen(&self) -> char {
@@ -122,17 +122,17 @@ fn move_generation_count(board: &mut Board, depth: usize, track_moves: bool) -> 
             continue;
         }
 
-        for piece_move in piece.get_immutable_moves().iter() {
-            let mut promotion_char_options = vec![piece_move.promotion_type];
+        for piece_move in piece.get_moves_clone().iter() {
+            let mut promotion_char_options = vec![piece_move.get_promotion_type()];
 
-            if piece_move.is_promotion {
+            if piece_move.is_promotion() {
                 promotion_char_options = get_promotion_options(piece.is_white());
             }
 
             let mut piece_move = piece_move.clone();
 
             for promotion_option in promotion_char_options {
-                piece_move.promotion_type = promotion_option;
+                piece_move.set_promotion_type(promotion_option);
 
                 let _ = board.move_piece(&piece_move);
 
@@ -140,7 +140,7 @@ fn move_generation_count(board: &mut Board, depth: usize, track_moves: bool) -> 
                 num_positions += moves_count;
 
                 if track_moves {
-                    if piece_move.is_promotion {
+                    if piece_move.is_promotion() {
                         println!(
                             "{}{}: {}",
                             get_move_char(&piece_move),
@@ -152,7 +152,7 @@ fn move_generation_count(board: &mut Board, depth: usize, track_moves: bool) -> 
                     }
                 }
 
-                board.undo_move();
+                board.undo_last_move();
             }
         }
     }
@@ -160,34 +160,53 @@ fn move_generation_count(board: &mut Board, depth: usize, track_moves: bool) -> 
     num_positions
 }
 
+#[inline]
 fn get_position_line_number(position: i8) -> usize {
     (8 - ((position - (position % 8)) / 8)) as usize
 }
 
+#[inline]
 fn get_position_column_number(position: i8) -> usize {
     (position - (position - (position % 8))) as usize
+}
+
+fn get_position_string(position: i8, columns: &[char]) -> String {
+    let line = get_position_line_number(position);
+    let column = get_position_column_number(position);
+
+    format!("{}{}", columns[column], line)
 }
 
 fn get_move_char(piece_move: &PieceMove) -> String {
     let columns = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'];
 
-    let from_position_line = get_position_line_number(piece_move.from_position);
+    let from_position_str = get_position_string(piece_move.get_from_position(), &columns);
+    let to_position_str = get_position_string(piece_move.get_to_position(), &columns);
 
-    let mut move_str = format!(
-        "{}{}",
-        columns[get_position_column_number(piece_move.from_position)],
-        from_position_line
-    );
+    format!("{}{}", from_position_str, to_position_str)
+}
 
-    let to_position_line = get_position_line_number(piece_move.to_position);
+#[cfg(test)]
+mod tests {
+    use super::BoardWrapper;
 
-    let to_position = format!(
-        "{}{}",
-        columns[get_position_column_number(piece_move.to_position)],
-        to_position_line
-    );
+    #[test]
+    fn test_move_generation_count() {
+        let mut board_wrapper = BoardWrapper::default();
 
-    move_str.push_str(to_position.as_str());
+        // Positions for initial FEN
 
-    move_str
+        assert_eq!(board_wrapper.get_move_generation_count(1), 20);
+        assert_eq!(board_wrapper.get_move_generation_count(2), 400);
+        assert_eq!(board_wrapper.get_move_generation_count(3), 8_902);
+        assert_eq!(board_wrapper.get_move_generation_count(4), 197_281);
+
+        board_wrapper
+            .load_position("r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq -");
+
+        assert_eq!(board_wrapper.get_move_generation_count(1), 48);
+        assert_eq!(board_wrapper.get_move_generation_count(2), 2_039);
+        assert_eq!(board_wrapper.get_move_generation_count(3), 97_862);
+        assert_eq!(board_wrapper.get_move_generation_count(4), 4_085_603);
+    }
 }

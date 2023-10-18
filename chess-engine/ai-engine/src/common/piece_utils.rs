@@ -1,36 +1,7 @@
-#[derive(PartialEq, Eq, Debug, Clone)]
-pub enum PieceType {
-    Empty = 0,
-    Bishop = 1,
-    King = 2,
-    Knight = 3,
-    Pawn = 4,
-    Queen = 5,
-    Rook = 6,
-}
-
-pub enum PieceColor {
-    Black = 8,
-    White = 16,
-}
-
-// static PIECE_SYMBOLS: HashMap<&'static str, &'static str> = [
-//     ("B", "♗"),
-//     ("K", "♔"),
-//     ("N", "♘"),
-//     ("P", "♙"),
-//     ("Q", "♕"),
-//     ("R", "♖"),
-//     ("b", "♝"),
-//     ("k", "♚"),
-//     ("n", "♞"),
-//     ("p", "♟︎"),
-//     ("q", "♛"),
-//     ("r", "♜"),
-// ]
-// .iter()
-// .copied()
-// .collect();
+use super::{
+    contants::{WHITE_LOWER_BOUND, WHITE_UPPER_BOUND},
+    enums::{PieceColor, PieceType},
+};
 
 pub fn pieces_to_fen(pieces: &[i8]) -> Vec<char> {
     pieces
@@ -60,7 +31,7 @@ pub fn piece_value_from_fen(piece_fen: &char) -> i8 {
         _ => PieceType::Empty,
     };
 
-    (color as i8) | (piece_type as i8)
+    (color.value()) | (piece_type.value())
 }
 
 pub fn piece_fen_from_value(piece_value: i8) -> char {
@@ -83,7 +54,7 @@ pub fn piece_fen_from_value(piece_value: i8) -> char {
 
 pub fn get_promotion_options(white: bool) -> Vec<i8> {
     if !white {
-        return vec![9, 11, 13, 14]
+        return vec![9, 11, 13, 14];
     }
 
     vec![17, 19, 21, 22]
@@ -104,23 +75,22 @@ pub fn get_piece_type(piece_value: i8) -> PieceType {
 
 pub fn get_piece_worth(piece_value: i8) -> i32 {
     match piece_value {
-        17 | 9 => 3, // Bishop
+        17 | 9 => 3,    // Bishop
         18 | 10 => 200, // King
-        19 | 11 => 3, // Knight
-        20 | 12 => 1, // Pawn
-        21 | 13 => 9, // Queen
-        22 | 14 => 5, // Rook
+        19 | 11 => 3,   // Knight
+        20 | 12 => 1,   // Pawn
+        21 | 13 => 9,   // Queen
+        22 | 14 => 5,   // Rook
         _ => 0,
     }
 }
 
-const WHITE_LOWER_BOUND: i8 = PieceColor::White as i8 | PieceType::Bishop as i8;
-const WHITE_UPPER_BOUND: i8 = PieceColor::White as i8 | PieceType::Rook as i8;
-
+#[inline]
 pub fn is_white_piece(piece_value: i8) -> bool {
     (WHITE_LOWER_BOUND..=WHITE_UPPER_BOUND).contains(&piece_value)
 }
 
+#[inline]
 pub fn is_same_color(piece1: i8, piece2: i8) -> bool {
     is_white_piece(piece1) == is_white_piece(piece2)
 }
