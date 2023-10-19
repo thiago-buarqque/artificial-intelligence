@@ -2,7 +2,7 @@ use pyo3::{exceptions, prelude::*};
 use std::time::Instant;
 
 use crate::{
-    ai::negamax::AI,
+    ai::ai_player::AIPlayer,
     common::{
         contants::{EMPTY_PIECE, INITIAL_FEN},
         piece_move::PieceMove,
@@ -18,7 +18,7 @@ use crate::{
 #[pyclass]
 pub struct BoardWrapper {
     board: Board,
-    nega_max: AI,
+    nega_max: AIPlayer,
 }
 
 // is this a facade?
@@ -32,14 +32,14 @@ impl BoardWrapper {
 
         BoardWrapper {
             board,
-            nega_max: AI::new(),
+            nega_max: AIPlayer::new(),
         }
     }
 
-    pub fn get_ai_move(&mut self, depth: u8) -> (i32, PieceMoveDTO) {
+    pub fn get_ai_move(&mut self, depth: u8) -> (f32, PieceMoveDTO) {
         let start = Instant::now();
 
-        let result = self.nega_max.make_move(&mut self.board, depth);
+        let result = self.nega_max.get_move(&mut self.board, depth);
 
         let duration = start.elapsed();
 
@@ -123,7 +123,7 @@ fn move_generation_count(board: &mut Board, depth: usize, track_moves: bool) -> 
         }
 
         for piece_move in piece.get_moves_clone().iter() {
-            let mut promotion_char_options = vec![piece_move.get_promotion_type()];
+            let mut promotion_char_options = vec![piece_move.get_promotion_value()];
 
             if piece_move.is_promotion() {
                 promotion_char_options = get_promotion_options(piece.is_white());
@@ -132,7 +132,7 @@ fn move_generation_count(board: &mut Board, depth: usize, track_moves: bool) -> 
             let mut piece_move = piece_move.clone();
 
             for promotion_option in promotion_char_options {
-                piece_move.set_promotion_type(promotion_option);
+                piece_move.set_promotion_value(promotion_option);
 
                 let _ = board.move_piece(&piece_move);
 

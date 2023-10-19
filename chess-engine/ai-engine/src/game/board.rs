@@ -115,11 +115,11 @@ impl Board {
         if self.is_en_passant_capture(moving_piece, to_index) {
             self.capture_en_passant(moving_piece);
         } else if piece_move.is_promotion() {
-            if piece_move.get_promotion_type() == EMPTY_PIECE {
+            if piece_move.get_promotion_value() == EMPTY_PIECE {
                 return Err("Pawn needs promotion type.");
             }
 
-            moving_piece = piece_move.get_promotion_type();
+            moving_piece = piece_move.get_promotion_value();
         } else if get_piece_type(moving_piece) == PieceType::King {
             self.handle_king_move(from_index, moving_piece, to_index);
         }

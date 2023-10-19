@@ -1,0 +1,4 @@
+- [ ] Apply pieces heatmap
+- [ ] Positions hashmap
+- [ ] Provider better infos to create visuals on what the AI is thinkings
+- [ ] Migrate API from Python to Rust

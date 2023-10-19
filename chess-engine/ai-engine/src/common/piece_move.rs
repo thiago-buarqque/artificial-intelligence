@@ -77,7 +77,7 @@ impl PieceMove {
         self.piece_value
     }
 
-    pub fn get_promotion_type(&self) -> i8 {
+    pub fn get_promotion_value(&self) -> i8 {
         self.promotion_type
     }
 
@@ -121,7 +121,7 @@ impl PieceMove {
         self.piece_value = piece_value;
     }
 
-    pub fn set_promotion_type(&mut self, promotion_type: i8) {
+    pub fn set_promotion_value(&mut self, promotion_type: i8) {
         self.promotion_type = promotion_type;
     }
 

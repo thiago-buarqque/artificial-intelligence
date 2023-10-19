@@ -2,25 +2,21 @@ use crate::{
     common::{
         board_piece::BoardPiece,
         contants::EMPTY_PIECE,
+        enums::PieceType,
         piece_move::PieceMove,
-        piece_utils::{get_piece_type, get_piece_worth, is_white_piece}, enums::PieceType,
+        piece_utils::{get_piece_type, get_piece_worth, get_promotion_options, is_white_piece},
     },
     game::{board::Board, board_state::BoardState, move_generator_helper::get_adjacent_position},
 };
 
-pub fn get_sorted_moves(board: &Board, max: bool, pieces: Vec<BoardPiece>) -> Vec<PieceMove> {
-    let mut moves: Vec<PieceMove> = pieces
-        .iter()
-        .filter(|piece| piece.is_white() == board.is_white_move())
-        .flat_map(|piece| piece.get_moves_clone())
-        .collect();
+use super::constants::{
+    BISHOP_SQUARE_TABLE, BLACK_PAWN_SQUARE_TABLE, KING_SQUARE_TABLE_END_GAME,
+    KING_SQUARE_TABLE_MIDDLE_GAME, KNIGHT_SQUARE_TABLE, QUEEN_SQUARE_TABLE, ROOK_SQUARE_TABLE,
+    WHITE_PAWN_SQUARE_TABLE,
+};
 
-    let attacked_positions: Vec<i8> = pieces
-        .iter()
-        .filter(|piece| piece.is_white() != board.is_white_move())
-        .flat_map(|piece| piece.get_moves_reference())
-        .map(|_move| _move.get_to_position())
-        .collect();
+pub fn get_sorted_moves(board: &Board, max: bool, pieces: Vec<BoardPiece>) -> Vec<PieceMove> {
+    let (mut moves, attacked_positions) = get_friendly_moves_and_attacked_positions(pieces, board);
 
     let board_state = board.get_state_reference();
 
@@ -34,7 +30,7 @@ pub fn get_sorted_moves(board: &Board, max: bool, pieces: Vec<BoardPiece>) -> Ve
         }
 
         if _move.is_promotion() {
-            _move.sum_to_move_worth(9);
+            _move.sum_to_move_worth(_move.get_promotion_value() as i32);
         }
 
         // Penalize pieces from moving to a attacked position
@@ -54,7 +50,78 @@ pub fn get_sorted_moves(board: &Board, max: bool, pieces: Vec<BoardPiece>) -> Ve
     moves
 }
 
-pub fn get_board_value(board: &mut Board, pieces: &[BoardPiece]) -> i32 {
+fn get_friendly_moves_and_attacked_positions(
+    pieces: Vec<BoardPiece>,
+    board: &Board,
+) -> (Vec<PieceMove>, Vec<i8>) {
+    let mut moves: Vec<PieceMove> = pieces
+        .iter()
+        .filter(|piece| piece.is_white() == board.is_white_move())
+        .flat_map(|piece| piece.get_moves_clone())
+        .collect();
+
+    let attacked_positions: Vec<i8> = pieces
+        .iter()
+        .filter(|piece| piece.is_white() != board.is_white_move())
+        .flat_map(|piece| piece.get_moves_reference())
+        .map(|_move| _move.get_to_position())
+        .collect();
+
+    let mut promotion_moves: Vec<PieceMove> = Vec::new();
+
+    moves
+        .iter()
+        .filter(|_move| _move.is_promotion())
+        .for_each(|_move| {
+            for promotion_option in get_promotion_options(is_white_piece(_move.get_piece_value())) {
+                let mut move_clone = _move.clone();
+
+                move_clone.set_promotion_value(promotion_option);
+
+                promotion_moves.push(move_clone)
+            }
+        });
+
+    if !promotion_moves.is_empty() {
+        moves.extend(promotion_moves);
+        moves.retain(|_move| !_move.is_promotion());
+    }
+
+    (moves, attacked_positions)
+}
+
+fn get_pst_value(position: i8, piece_value: i8, end_game: bool, white_piece: bool) -> f32 {
+    let piece_type = get_piece_type(piece_value);
+
+    if piece_type == PieceType::Pawn {
+        if white_piece {
+            return WHITE_PAWN_SQUARE_TABLE[position as usize] as f32;
+        }
+
+        return BLACK_PAWN_SQUARE_TABLE[position as usize] as f32;
+    } else if piece_type == PieceType::King {
+        if end_game {
+            return KING_SQUARE_TABLE_END_GAME[position as usize] as f32;
+        }
+
+        return KING_SQUARE_TABLE_MIDDLE_GAME[position as usize] as f32;
+    }
+
+    (match piece_type {
+        PieceType::Bishop => BISHOP_SQUARE_TABLE[position as usize],
+        PieceType::Knight => KNIGHT_SQUARE_TABLE[position as usize],
+        PieceType::Queen => QUEEN_SQUARE_TABLE[position as usize],
+        PieceType::Rook => ROOK_SQUARE_TABLE[position as usize],
+        _ => 0,
+    }) as f32
+}
+
+pub fn get_board_value(board: &mut Board, pieces: &[BoardPiece]) -> f32 {
+    if board.is_game_finished() && board.get_winner_fen() == 'd' {
+        // Draw
+        return 0.0;
+    }
+
     // The evaluation
     // f(p) = 200(K-K')
     //         + 9(Q-Q')
@@ -69,29 +136,44 @@ pub fn get_board_value(board: &mut Board, pieces: &[BoardPiece]) -> i32 {
     // D,S,I = doubled, blocked and isolated pawns
     // M = Mobility (the number of legal moves)
 
-    let mut k = 0;
-    let mut q = 0;
-    let mut r = 0;
-    let mut b = 0;
-    let mut n = 0;
-    let mut p = 0;
+    let mut k: f32 = 0.0;
+    let mut q: f32 = 0.0;
+    let mut r: f32 = 0.0;
+    let mut b: f32 = 0.0;
+    let mut n: f32 = 0.0;
+    let mut p: f32 = 0.0;
 
-    let mut d = 0;
-    let mut s = 0;
-    let mut i = 0;
-    let mut m = 0;
+    let mut d: f32 = 0.0;
+    let mut s: f32 = 0.0;
+    let mut i: f32 = 0.0;
+    let mut m: f32 = 0.0;
 
     let board_state = board.get_state_reference();
+
+    let mut pst_score: f32 = 0.0;
 
     for piece in pieces.iter() {
         if piece.get_value() == EMPTY_PIECE {
             continue;
         }
 
-        let factor: i32 = if piece.is_white() == board.is_white_move() {
-            1
+        let pst_value = get_pst_value(
+            piece.get_position(),
+            piece.get_value(),
+            false, // TODO determine endgame
+            piece.is_white(),
+        );
+
+        if piece.is_white() == board.is_white_move() {
+            pst_score += piece.get_value() as f32 + pst_value;
         } else {
-            -1
+            pst_score -= piece.get_value() as f32 + pst_value;
+        }
+
+        let factor: f32 = if piece.is_white() == board.is_white_move() {
+            1.0
+        } else {
+            -1.0
         };
 
         let piece_type = get_piece_type(piece.get_value());
@@ -113,24 +195,26 @@ pub fn get_board_value(board: &mut Board, pieces: &[BoardPiece]) -> i32 {
             }
 
             if is_blocked_pawn(board_state, piece.get_position(), piece.is_white()) {
-                s += 1;
+                s += 1.0;
             }
 
             if is_isolated_pawn(board_state, piece.get_position(), piece.is_white()) {
-                i += 1;
+                i += 1.0;
             }
         }
 
         for _move in piece.get_moves_reference().iter() {
             if piece.is_white() == board.is_white_move() {
-                m += 1
+                m += 1.0
             } else {
-                m -= 1
+                m -= 1.0
             };
         }
     }
 
-    (200 * k) + (9 * q) + (5 * r) + (3 * (b + n)) + p - ((d + s + i) / 2) + (m / 10)
+    (200.0 * k) + (9.0 * q) + (5.0 * r) + (3.0 * (b + n)) + p - ((d + s + i) / 2.0)
+        + (m / 10.0)
+        + pst_score
 }
 
 pub fn is_isolated_pawn(board_state: &BoardState, position: i8, white_piece: bool) -> bool {
@@ -204,14 +288,14 @@ pub fn is_blocked_pawn(board_state: &BoardState, position: i8, white_piece: bool
     false
 }
 
-pub fn is_doubled_pawn(board_state: &BoardState, position: i8, white_piece: bool) -> bool {
+pub fn is_doubled_pawn(board_state: &BoardState, mut position: i8, white_piece: bool) -> bool {
     let offset: i8 = if white_piece { -8 } else { 8 };
 
-    let mut _position = position + offset;
-    while board_state.is_valid_position(_position) {
-        let frontal_piece = board_state.get_piece(_position);
+    position += offset;
+    while board_state.is_valid_position(position) {
+        let frontal_piece = board_state.get_piece(position);
 
-        _position += offset;
+        position += offset;
 
         if frontal_piece == EMPTY_PIECE {
             continue;

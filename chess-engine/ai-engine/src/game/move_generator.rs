@@ -226,7 +226,7 @@ impl MoveGenerator {
         };
 
         if piece_move_clone.is_promotion() {
-            piece_move_clone.set_promotion_type(piece_value);
+            piece_move_clone.set_promotion_value(piece_value);
         }
 
         let _ = board.move_piece(&piece_move_clone);
@@ -303,7 +303,7 @@ impl MoveGenerator {
             if !self.board_state.is_valid_position(new_position) {
                 continue;
             }
-            
+
             let current_piece = self.board_state.get_piece(new_position);
 
             let same_color = is_same_color(knight_piece, current_piece);
@@ -530,7 +530,7 @@ impl MoveGenerator {
         let piece = self.board_state.get_piece(position);
 
         let mut moves = Vec::with_capacity(28);
-        
+
         self.generate_sliding_moves(&mut moves, piece, position, SquareOffset::LineAbove);
         self.generate_sliding_moves(&mut moves, piece, position, SquareOffset::Left);
         self.generate_sliding_moves(&mut moves, piece, position, SquareOffset::Right);
