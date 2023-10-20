@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use std::{
     ops::Add,
     sync::{Arc, Mutex},
@@ -12,11 +14,15 @@ use crate::{
 
 use super::ai_utils::{get_board_value, get_sorted_moves};
 
-pub struct AIPlayer {}
+pub struct AIPlayer {
+    zobrist_map:  Arc<Mutex<HashMap<u64, f32>>>,
+}
 
 impl AIPlayer {
     pub fn new() -> Self {
-        AIPlayer {}
+        AIPlayer {
+            zobrist_map: Arc::new(Mutex::new(HashMap::new())),
+        }
     }
 
     pub fn get_move(&mut self, board: &mut Board, depth: u8) -> (f32, PieceMove) {
@@ -26,7 +32,7 @@ impl AIPlayer {
 
         let pieces: Vec<BoardPiece> = board.get_pieces();
 
-        let mut moves: Vec<PieceMove> = get_sorted_moves(board, true, pieces);
+        let mut moves: Vec<PieceMove> = get_sorted_moves(board, true, &pieces);
 
         moves.par_iter_mut().for_each(|_move| {
             let mut board_copy = board.clone();
@@ -52,16 +58,16 @@ impl AIPlayer {
 
     fn search_parallel(
         &self,
-        _move: &mut PieceMove,
+        _move: &PieceMove,
         board: &mut Board,
         depth: u8,
         value: &Arc<Mutex<f32>>,
         moves_count: &Arc<Mutex<u64>>,
         best_move: &Arc<Mutex<PieceMove>>,
     ) {
-        let _ = board.move_piece(_move);
+        let _ = board.make_move(_move);
 
-        let node_results = Self::search(board, f32::MIN, f32::MAX, false, depth - 1);
+        let node_results = self.search(board, f32::MIN, f32::MAX, false, depth - 1);
 
         let mut locked_moves_count = moves_count.lock().unwrap();
 
@@ -86,21 +92,40 @@ impl AIPlayer {
         board.undo_last_move();
     }
 
-    fn search(board: &mut Board, mut alpha: f32, beta: f32, max: bool, depth: u8) -> (f32, u64) {
+    fn search(
+        &self,
+        board: &mut Board,
+        mut alpha: f32,
+        beta: f32,
+        max: bool,
+        depth: u8,
+    ) -> (f32, u64) {
         let pieces: Vec<BoardPiece> = board.get_pieces();
 
         if depth == 0 || board.is_game_finished() {
-            return (get_board_value(board, &pieces), 1);
+            let zobrist_hash = board.get_zobrist_hash();
+
+            let mut locked_zobrist_map = self.zobrist_map.lock().unwrap();
+
+            if let Some(score) = locked_zobrist_map.get(&zobrist_hash) {                
+                return (*score, 1);
+            } else {
+                let score = get_board_value(board, max, &pieces);
+
+                locked_zobrist_map.insert(zobrist_hash, score);
+
+                return (score, 1);
+            }
         }
 
         let mut moves_count = 0;
 
-        let mut moves: Vec<PieceMove> = get_sorted_moves(board, max, pieces);
+        let mut moves: Vec<PieceMove> = get_sorted_moves(board, max, &pieces);
 
         'piece_move_loop: for _move in moves.iter_mut() {
-            let _ = board.move_piece(_move);
+            let _ = board.make_move(_move);
 
-            let node_results = Self::search(board, -beta, -alpha, !max, depth - 1);
+            let node_results = self.search(board, -beta, -alpha, !max, depth - 1);
 
             board.undo_last_move();
 

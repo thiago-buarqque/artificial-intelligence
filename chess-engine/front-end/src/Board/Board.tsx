@@ -62,6 +62,7 @@ const Board = () => {
     pieces: [],
     whiteMove: true,
     winner: "-",
+    zobrit: 0
   });
 
   const onPieceSelect = (piece: TPiece) => {
@@ -210,14 +211,13 @@ const Board = () => {
     http
       .get<TBoard>("/board")
       .then((response) => response.data)
-      .then((data) => {
-        // console.log("Setting board", data);
+      .then((data) => {        
         setBoard(data);
       });
   }, []);
 
   useEffect(() => {
-    // console.log(board);
+    console.log("Zobrit:", board.zobrit);
 
     if (board.winner !== "-") {
       if (board.winner === "d") {

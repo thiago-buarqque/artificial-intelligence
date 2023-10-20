@@ -229,7 +229,7 @@ impl MoveGenerator {
             piece_move_clone.set_promotion_value(piece_value);
         }
 
-        let _ = board.move_piece(&piece_move_clone);
+        let _ = board.make_move(&piece_move_clone);
 
         if !self.is_king_attacked_on_state(target_position, board.get_state_clone()) {
             valid_moves.push(piece_move.clone());

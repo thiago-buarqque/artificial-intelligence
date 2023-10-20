@@ -1,5 +1,5 @@
 use super::{
-    contants::{WHITE_LOWER_BOUND, WHITE_UPPER_BOUND},
+    contants::{WHITE_LOWER_BOUND, WHITE_UPPER_BOUND, BISHOP_WORTH, KING_WORTH, KNIGHT_WORTH, PAWN_WORTH, QUEEN_WORTH, ROOK_WORTH},
     enums::{PieceColor, PieceType},
 };
 
@@ -75,12 +75,12 @@ pub fn get_piece_type(piece_value: i8) -> PieceType {
 
 pub fn get_piece_worth(piece_value: i8) -> i32 {
     match piece_value {
-        17 | 9 => 300,    // Bishop
-        18 | 10 => 20000, // King
-        19 | 11 => 300,   // Knight
-        20 | 12 => 100,   // Pawn
-        21 | 13 => 900,   // Queen
-        22 | 14 => 500,   // Rook
+        17 | 9 => BISHOP_WORTH as i32,    // Bishop
+        18 | 10 => KING_WORTH as i32, // King
+        19 | 11 => KNIGHT_WORTH as i32,   // Knight
+        20 | 12 => PAWN_WORTH as i32,   // Pawn
+        21 | 13 => QUEEN_WORTH as i32,   // Queen
+        22 | 14 => ROOK_WORTH as i32,   // Rook
         _ => 0,
     }
 }

@@ -1,8 +1,15 @@
-use crate::common::piece_utils::{piece_value_from_fen, pieces_to_fen};
+use crate::common::{
+    contants::EMPTY_PIECE,
+    enums::PieceType,
+    piece_utils::{is_piece_of_type, is_white_piece, piece_value_from_fen, pieces_to_fen},
+};
 
-use super::contants::{
-    BLACK_KING_INITIAL_POSITION, BLACK_KING_VALUE, LETTER_A_UNICODE, WHITE_KING_INITIAL_POSITION,
-    WHITE_KING_VALUE,
+use super::{
+    contants::{
+        BLACK_KING_INITIAL_POSITION, BLACK_KING_VALUE, LETTER_A_UNICODE,
+        WHITE_KING_INITIAL_POSITION, WHITE_KING_VALUE,
+    },
+    zobrist::Zobrist,
 };
 
 #[derive(Debug, Clone)]
@@ -24,11 +31,14 @@ pub struct BoardState {
     white_king_moved: bool,
     white_king_position: i8,
     winner: i8,
+    zobrist: Zobrist,
 }
 
 impl BoardState {
     pub fn new() -> Self {
-        BoardState {
+        let mut zobrist = Zobrist::new();
+
+        let mut board_state = BoardState {
             black_able_to_king_side_castle: true,
             black_able_to_queen_side_castle: true,
             black_captures: Vec::new(),
@@ -46,7 +56,16 @@ impl BoardState {
             white_king_moved: false,
             white_king_position: WHITE_KING_INITIAL_POSITION,
             winner: 0,
-        }
+            zobrist,
+        };
+
+        zobrist = Zobrist::new();
+
+        zobrist.compute_hash(&board_state);
+
+        board_state.zobrist = zobrist;
+
+        board_state
     }
 
     pub fn clone(&self) -> Self {
@@ -68,6 +87,7 @@ impl BoardState {
             white_king_moved: self.white_king_moved,
             white_king_position: self.white_king_position,
             winner: self.winner,
+            zobrist: self.zobrist.clone(),
         }
     }
 
@@ -105,6 +125,34 @@ impl BoardState {
         }
 
         self.squares[index as usize] = piece;
+    }
+
+    pub fn move_piece(&mut self, from_index: i8, piece: i8, to_index: i8) {
+        let moved_piece = self.get_piece(from_index);
+        let captured_piece = self.get_piece(to_index);
+
+        self.place_piece(to_index, piece);
+
+        self.place_piece(from_index, EMPTY_PIECE);
+
+        self.zobrist.update_hash_on_move(
+            from_index as usize,
+            to_index as usize,
+            moved_piece,
+            captured_piece,
+        );
+
+        if is_piece_of_type(captured_piece, PieceType::Empty) {
+            return;
+        }
+
+        let is_white = is_white_piece(captured_piece);
+
+        if is_white {
+            self.append_black_capture(captured_piece);
+        } else {
+            self.append_white_capture(captured_piece);
+        }
     }
 
     pub fn is_valid_position(&self, index: i8) -> bool {
@@ -274,6 +322,10 @@ impl BoardState {
         self.white_en_passant
     }
 
+    pub fn get_zobrist_hash(&self) -> u64 {
+        self.zobrist.get_hash()
+    }
+
     pub fn has_white_king_moved(&self) -> bool {
         self.white_king_moved
     }
@@ -303,10 +355,18 @@ impl BoardState {
     }
 
     pub fn set_black_en_passant(&mut self, value: i8) {
+        if self.black_en_passant != value {
+            self.zobrist.update_hash_on_black_en_passant_change();
+        }
+
         self.black_en_passant = value;
     }
 
     pub fn set_white_en_passant(&mut self, value: i8) {
+        if self.white_en_passant != value {
+            self.zobrist.update_hash_on_white_en_passant_change();
+        }
+
         self.white_en_passant = value;
     }
 
@@ -336,10 +396,34 @@ impl BoardState {
 
     pub fn update_castling_ability(&mut self, index: i8, is_black: bool, is_king_side: bool) {
         match (index, is_black, is_king_side) {
-            (0, true, false) => self.black_able_to_queen_side_castle = false,
-            (7, true, true) => self.black_able_to_king_side_castle = false,
-            (56, false, false) => self.white_able_to_queen_side_castle = false,
-            (63, false, true) => self.white_able_to_king_side_castle = false,
+            (0, true, false) => {
+                if self.black_able_to_queen_side_castle {
+                    self.zobrist.update_hash_on_black_lose_queen_side_castle();
+                }
+
+                self.black_able_to_queen_side_castle = false;
+            }
+            (7, true, true) => {
+                if self.black_able_to_king_side_castle {
+                    self.zobrist.update_hash_on_black_lose_rook_side_castle();
+                }
+
+                self.black_able_to_king_side_castle = false;
+            }
+            (56, false, false) => {
+                if self.white_able_to_queen_side_castle {
+                    self.zobrist.update_hash_on_white_lose_queen_side_castle()
+                }
+
+                self.white_able_to_queen_side_castle = false;
+            }
+            (63, false, true) => {
+                if self.white_able_to_king_side_castle {
+                    self.zobrist.update_hash_on_white_lose_rook_side_castle()
+                }
+
+                self.white_able_to_king_side_castle = false;
+            }
             _ => {}
         }
     }

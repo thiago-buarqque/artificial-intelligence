@@ -42,39 +42,21 @@ def get_move_count():
 def move_piece():
     board.move_piece(MoveDTO.from_dict_piece_moveDTO(request.json))
 
-    # Evaluated 104201 states
-    # Time elapsed is: 512.858322ms
-    # Elapsed time: 0.512904167175293
-    # 2, (12, 28)
-    #
-    # Evaluated 165322 states
-    # Time elapsed is: 1.170370627s
-    # Elapsed time: 1.170409917831421
-    # 4, (14, 30)
-    #
-    # Evaluated 82993 states
-    # Time elapsed is: 663.333424ms
-    # Elapsed time: 0.6633729934692383
-    # 5, (3, 21)
-    #
-    # Evaluated 2343 states
-    # Time elapsed is: 56.840847ms
-    # Elapsed time: 0.056849002838134766
-    # 5, (21, 13)
-    #
-    # Evaluated 6460 states
-    # Time elapsed is: 109.605544ms
-    # Elapsed time: 0.10961484909057617
-    # 5, (4, 13)
+    # Evaluated 55593 states
+    # Time elapsed is: 1.940869201s
+    # Elapsed time: 1.9409072399139404
+    # -72.0, (1, 18)
+
+    # Evaluated 84521 states
+    # Time elapsed is: 3.140024914s
+    # Elapsed time: 3.1400742530822754
+    # -101.80000305175781, (12, 20)
 
     # Ai move
     if board.get_winner_fen() == "-":
         start = time.time()
         move_value, move = \
             board.get_ai_move(5)
-
-        # Evaluated 5480 states
-        # Time elapsed is: 40.07236ms
 
         end = time.time()
         print(f"Elapsed time: {(end - start)}")

@@ -78,6 +78,10 @@ impl BoardWrapper {
         pieces
     }
 
+    pub fn get_zobrist_hash(&self) -> u64 {
+        self.board.get_zobrist_hash()
+    }
+
     pub fn get_black_en_passant(&self) -> i8 {
         self.board.get_state_reference().get_black_en_passant()
     }
@@ -101,7 +105,7 @@ impl BoardWrapper {
     pub fn move_piece(&mut self, piece_move: PieceMoveDTO) -> PyResult<()> {
         let _move = PieceMove::from_dto(piece_move);
 
-        match self.board.move_piece(&_move) {
+        match self.board.make_move(&_move) {
             Ok(()) => Ok(()),
             Err(error) => Err(exceptions::PyValueError::new_err(error)),
         }
@@ -134,7 +138,7 @@ fn move_generation_count(board: &mut Board, depth: usize, track_moves: bool) -> 
             for promotion_option in promotion_char_options {
                 piece_move.set_promotion_value(promotion_option);
 
-                let _ = board.move_piece(&piece_move);
+                let _ = board.make_move(&piece_move);
 
                 let moves_count = move_generation_count(board, depth - 1, false);
                 num_positions += moves_count;

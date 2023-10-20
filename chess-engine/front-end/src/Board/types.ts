@@ -4,6 +4,7 @@ export type TBoard = {
   whiteCaptures: string[];
   whiteMove: boolean;
   winner: "-" | "b" | "w" | "d";
+  zobrit: number;
 };
 
 export type TPiece = {

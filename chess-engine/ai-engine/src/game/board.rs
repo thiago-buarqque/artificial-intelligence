@@ -48,26 +48,6 @@ impl Board {
         });
     }
 
-    fn place_piece(&mut self, from_index: i8, piece: i8, to_index: i8) {
-        let existing_piece = self.state.get_piece(to_index);
-
-        self.state.place_piece(to_index, piece);
-
-        self.state.place_piece(from_index, EMPTY_PIECE);
-
-        if is_piece_of_type(existing_piece, PieceType::Empty) {
-            return;
-        }
-
-        let is_white = is_white_piece(existing_piece);
-
-        if is_white {
-            self.state.append_black_capture(existing_piece);
-        } else {
-            self.state.append_white_capture(existing_piece);
-        }
-    }
-
     pub fn get_winner_fen(&self) -> char {
         match self.state.winner() {
             x if x == (PieceColor::White.value()) => 'w',
@@ -77,10 +57,10 @@ impl Board {
         }
     }
 
-    pub fn move_piece(&mut self, piece_move: &PieceMove) -> Result<(), &'static str> {
+    pub fn make_move(&mut self, piece_move: &PieceMove) -> Result<(), &'static str> {
         self.state_history.push(self.state.clone());
 
-        self._move_piece(piece_move, false)
+        self._make_move(piece_move, false)
     }
 
     pub fn undo_last_move(&mut self) {
@@ -93,7 +73,11 @@ impl Board {
         self.state.clone()
     }
 
-    fn _move_piece(
+    pub fn get_zobrist_hash(&self) -> u64 {
+        self.state.get_zobrist_hash()
+    }
+
+    fn _make_move(
         &mut self,
         piece_move: &PieceMove,
         rook_castling: bool,
@@ -108,8 +92,8 @@ impl Board {
         let mut moving_piece = self.state.get_piece(from_index);
         let existing_piece = self.state.get_piece(to_index);
 
-        if let Some(result) = validate_move_pieces(moving_piece, existing_piece) {
-            return result;
+        if let Some(invalid_result) = validate_move_pieces(moving_piece, existing_piece) {
+            return invalid_result;
         }
 
         if self.is_en_passant_capture(moving_piece, to_index) {
@@ -124,7 +108,7 @@ impl Board {
             self.handle_king_move(from_index, moving_piece, to_index);
         }
 
-        self.place_piece(from_index, moving_piece, to_index);
+        self.state.move_piece(from_index, moving_piece, to_index);
 
         if !rook_castling {
             self.handle_state_update_after(from_index, moving_piece, to_index, existing_piece);
@@ -214,7 +198,7 @@ impl Board {
 
         let rook_move = PieceMove::new(rook_position, rook_value, new_rook_position);
 
-        self._move_piece(&rook_move, true)
+        self._make_move(&rook_move, true)
     }
 
     fn capture_en_passant(&mut self, moving_piece: i8) {

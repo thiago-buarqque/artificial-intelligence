@@ -16,4 +16,5 @@ class BoardDTO(DTO):
                       whiteEnPassant=board.get_white_en_passant(),
                       whiteMove=board.is_white_move(),
                       winner=board.get_winner_fen(),
+                      zobrit=board.get_zobrist_hash()
                       )
